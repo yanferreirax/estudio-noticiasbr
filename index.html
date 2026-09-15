@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Gerador de criativos 9:16 e 3:4 para Facebook e Instagram Ads.">
+<meta name="description" content="Gerador de criativos 9:16 para Facebook e Instagram Ads.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%93%B8</text></svg>">
 <title>Estúdio Noticias BR</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=Bebas+Neue&family=Montserrat:wght@900&family=Oswald:wght@700&family=Staatliches&display=swap">
 <style>
   :root {
     --bg: #f2efe9;
@@ -132,6 +132,25 @@
   .fmt .fmt-t b { font-size: 12.5px; }
   .fmt .fmt-t span { font-size: 10.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .fmt i.solid { opacity: 1; border-width: 2px; border-style: solid; }
+
+  .segs { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .seg {
+    padding: 7px 6px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 7px; cursor: pointer; color: var(--muted); font-size: 11.5px; font-weight: 700;
+  }
+  .seg[aria-pressed="true"] { border-color: var(--signal); color: var(--ink); box-shadow: inset 0 0 0 1px var(--signal); }
+  .cen { display: flex; flex-direction: column; gap: 8px; padding-top: 2px; }
+  .cen[hidden] { display: none; }
+
+  /* font picker */
+  .fonts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+  .fnt {
+    padding: 11px 6px 9px; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 8px; cursor: pointer; color: var(--muted);
+    font-size: 17px; line-height: 1; text-transform: uppercase;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .fnt[aria-pressed="true"] { border-color: var(--signal); color: var(--ink); box-shadow: inset 0 0 0 1px var(--signal); }
 
   /* template picker */
   .templates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
@@ -272,14 +291,21 @@
     <div class="rail-body">
 
       <fieldset>
-        <legend>Formato</legend>
-        <div class="formats" id="formats"></div>
-      </fieldset>
-
-      <fieldset>
         <legend>Modelo</legend>
         <div class="templates" id="templates"></div>
         <p class="hint" id="tplHint"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Tipografia</legend>
+        <span class="field-label">Fonte da manchete</span>
+        <div class="fonts" id="fonts"></div>
+        <div class="zoomrow">
+          <span class="field-label">Tamanho</span>
+          <input type="range" min="80" max="130" step="5" id="textScale" aria-label="Tamanho da manchete">
+          <output id="textScaleVal">100%</output>
+        </div>
+        <label class="check"><input type="checkbox" id="caps" checked> Texto em CAIXA ALTA</label>
       </fieldset>
 
       <fieldset>
@@ -354,8 +380,9 @@
       </fieldset>
 
       <fieldset>
-        <legend>Guias</legend>
-        <label class="check" id="guidesLabel"><input type="checkbox" id="guides"> Área segura do Stories</label>
+        <legend>Área segura</legend>
+        <label class="check"><input type="checkbox" id="safeLayout"> Manter texto fora da interface</label>
+        <label class="check" id="guidesLabel"><input type="checkbox" id="guides"> Mostrar as linhas na prévia</label>
         <p class="hint" id="guidesHint"></p>
       </fieldset>
 
@@ -399,7 +426,7 @@
   'use strict';
 
   var RED = '#d81f26';
-  var ANTON = "'Anton', Impact, sans-serif";
+  var SIREN = '\uD83D\uDEA8';
   var ARCH = "'Archivo', sans-serif";
   var SWATCHES = ['#f5c518', '#ff3b30', '#00c2ff', '#25d366', '#ffffff', '#111111'];
 
@@ -436,9 +463,26 @@
   function accentOn(bg) { return ratio(state.accent, bg) >= 2 ? state.accent : T().ink; }
 
   var FORMATS = {
-    '9:16': { id: '9:16', name: 'Stories', w: 1080, h: 1920, maxLines: 5, bottomPad: 60, ctaGap: 150, safe: [250, 340] },
-    '3:4':  { id: '3:4',  name: 'Feed',    w: 1080, h: 1440, maxLines: 4, bottomPad: 46, ctaGap: 96,  safe: null }
+    '9:16': { id: '9:16', name: 'Stories', w: 1080, h: 1920, maxLines: 5, bottomPad: 60, ctaGap: 150, safe: [250, 340] }
   };
+
+  /* famílias de manchete — scale normaliza o peso aparente, lh o entrelinha,
+     sp o ajuste de tracking que cada desenho pede */
+  var FONTS = [
+    { id: 'anton',      name: 'Anton',         css: "'Anton', Impact, sans-serif",         w: 400, scale: 1.00, lh: 1.00, sp: 0 },
+    { id: 'archivo',    name: 'Archivo Black', css: "'Archivo Black', Impact, sans-serif", w: 400, scale: 0.84, lh: 1.14, sp: -0.5 },
+    { id: 'bebas',      name: 'Bebas Neue',    css: "'Bebas Neue', Impact, sans-serif",    w: 400, scale: 1.14, lh: 0.96, sp: 1.5 },
+    { id: 'oswald',     name: 'Oswald',        css: "'Oswald', Impact, sans-serif",        w: 700, scale: 0.98, lh: 1.05, sp: 0 },
+    { id: 'staatliches',name: 'Staatliches',   css: "'Staatliches', Impact, sans-serif",   w: 400, scale: 1.04, lh: 1.00, sp: 1 },
+    { id: 'montserrat', name: 'Montserrat',    css: "'Montserrat', Impact, sans-serif",    w: 900, scale: 0.80, lh: 1.16, sp: -1 }
+  ];
+  function FT() {
+    for (var i = 0; i < FONTS.length; i++) if (FONTS[i].id === state.font) return FONTS[i];
+    return FONTS[0];
+  }
+  function DISP() { return FT().css; }
+  function DW() { return FT().w; }
+  function sp(base) { return (base || 0) + FT().sp; }
 
   var TPLS = [
     { id: 'A', name: 'Split',    fields: [],                    hint: 'Cabeçalho de perfil no topo e as duas fotos lado a lado. É o formato clássico de página de notícia.' },
@@ -447,13 +491,25 @@
     { id: 'D', name: 'Plantão',  fields: ['tag'],               hint: 'Faixa de plantão no topo e bloco sólido embaixo, no estilo de escalada de telejornal.' },
     { id: 'E', name: 'Aspas',    fields: ['source'],            hint: 'Para declaração polêmica: aspas grandes, a fala e quem falou. Escreva a frase como ela foi dita.' },
     { id: 'F', name: 'Antes',    fields: ['labels'],            hint: 'Comparação lado a lado com etiqueta em cada metade. Bom para transformação e antes/depois.' },
-    { id: 'G', name: 'Enquete',  fields: ['labels'],            hint: 'Pergunta no topo e duas alternativas embaixo. Puxa comentário, que barateia o clique.' }
+    { id: 'G', name: 'Enquete',  fields: ['labels'],            hint: 'Pergunta no topo e duas alternativas embaixo. Puxa comentário, que barateia o clique.' },
+    { id: 'H', name: 'Cartão',   fields: [],                    hint: 'As fotos entram num cartão de cantos arredondados com fio na cor de destaque, e a manchete fica embaixo, no respiro.' },
+    { id: 'I', name: 'Diagonal', fields: ['tag'],               hint: 'As duas fotos divididas por um corte diagonal, com o fio de destaque na junção. Quebra o padrão do split reto.' },
+    { id: 'J', name: 'Ticker',   fields: ['tag'],               hint: 'Selo em bloco sólido, barra da manchete e faixa corrida no rodapé. É a linguagem de rodapé de telejornal.' },
+    { id: 'K', name: 'Destaque', fields: [],                    hint: 'Uma foto grande ocupando o topo e a segunda num recorte sobreposto com borda. Bom quando uma foto é a principal.' },
+    { id: 'L', name: 'Moldura',  fields: [],                    hint: 'Borda grossa na cor de destaque contornando tudo. É o modelo que mais se diferencia no feed de imediato.' },
+    { id: 'M', name: 'Faixa',    fields: ['tag'],               hint: 'Faixa sólida atravessando o meio da peça com a manchete dentro. Como fica no centro, é o mais legível de todos no Stories.' },
+    { id: 'N', name: 'Envelope', fields: [],                    hint: 'Barras sólidas em cima e embaixo com as fotos numa janela no meio. Nasceu desenhado em cima da área segura.' },
+    { id: 'O', name: 'Etiqueta', fields: ['tag'],               hint: 'A manchete numa caixa sólida com sombra dura deslocada, estilo adesivo. Destaca muito sobre foto cheia.' },
+    { id: 'P', name: 'Empilhado',fields: ['labels'],            hint: 'As duas fotos uma sobre a outra, em faixas largas, com a manchete entre elas. Único que divide na horizontal.' }
   ];
 
   var state = {
     format: '9:16',
     theme: 'dark',
     template: 'A',
+    font: 'anton',
+    textScale: 100,
+    caps: true,
     headline: 'ATENÇÃO: SUA MANCHETE PRINCIPAL ENTRA AQUI EM ATÉ 12 PALAVRAS',
     siren: true,
     tag: 'Urgente',
@@ -467,6 +523,10 @@
     initials: 'NB',
     accent: '#f5c518',
     guides: false,
+    safeLayout: true,
+    censorOn: false,
+    censorType: 'blur',
+    censorAmount: 60,
     photos: [
       { img: null, name: '', zoom: 1, ox: 0, oy: 0 },
       { img: null, name: '', zoom: 1, ox: 0, oy: 0 }
@@ -474,12 +534,18 @@
     avatar: { img: null, url: '', zoom: 1 }
   };
 
-  var STORE_KEYS = ['format', 'theme', 'template', 'brand', 'handle', 'initials', 'accent', 'cta', 'tag'];
+  var STORE_KEYS = ['theme', 'template', 'font', 'textScale', 'caps', 'brand', 'handle', 'initials', 'accent', 'cta', 'tag', 'censorOn', 'censorType', 'censorAmount', 'safeLayout'];
   try {
     var saved = JSON.parse(localStorage.getItem('estudio-noticias-br') || '{}');
-    STORE_KEYS.forEach(function (k) { if (typeof saved[k] === 'string') state[k] = saved[k]; });
-    if (!FORMATS[state.format]) state.format = '9:16';
+    STORE_KEYS.forEach(function (k) {
+      if (saved[k] !== undefined && typeof saved[k] === typeof state[k]) state[k] = saved[k];
+    });
+    state.format = '9:16';
     if (!THEMES[state.theme]) state.theme = 'dark';
+    if (!FONTS.some(function (f) { return f.id === state.font; })) state.font = 'anton';
+    state.textScale = Math.max(80, Math.min(130, state.textScale || 100));
+    state.censorAmount = Math.max(10, Math.min(100, state.censorAmount || 60));
+    if (state.censorType !== 'pixel') state.censorType = 'blur';
     if (!TPLS.some(function (t) { return t.id === state.template; })) state.template = 'A';
   } catch (e) { /* storage indisponível */ }
 
@@ -529,13 +595,45 @@
     return lines.length ? lines : [''];
   }
 
+  // escolhe o maior corpo que ainda cabe em maxLines, já com a escala do usuário
+  // e a correção de peso aparente da família escolhida
   function fitHeadline(c, text, maxW, sizes, maxLines, spacing) {
-    for (var i = 0; i < sizes.length; i++) {
-      setFont(c, sizes[i], ANTON, 400, spacing);
+    var k = (state.textScale / 100) * FT().scale;
+    var list = sizes.map(function (s) { return Math.round(s * k); });
+    var last = list[list.length - 1];
+    list.push(Math.round(last * 0.86), Math.round(last * 0.74)); // escapes, para escala alta nunca estourar
+    for (var i = 0; i < list.length; i++) {
+      setFont(c, list[i], DISP(), DW(), sp(spacing));
       var lines = wrapLines(c, text, maxW);
-      if (lines.length <= maxLines || i === sizes.length - 1) return { size: sizes[i], lines: lines };
+      if (lines.length <= maxLines || i === list.length - 1) {
+        return { size: list[i], lines: lines, lh: FT().lh };
+      }
     }
-    return { size: sizes[0], lines: [text] };
+    return { size: list[0], lines: [text], lh: FT().lh };
+  }
+  // entrelinha de um bloco de manchete, já com o ajuste da família
+  function lineHeight(fit, base) { return fit.size * base * fit.lh; }
+
+  /* Ajusta a manchete a uma CAIXA (largura e altura). A foto define o espaço
+     primeiro; o que não couber reduz o corpo do texto, nunca a foto. */
+  function fitBox(c, text, maxW, maxH, sizes, baseLH, maxLines, spacing) {
+    var k = (state.textScale / 100) * FT().scale;
+    var list = sizes.map(function (v) { return Math.round(v * k); });
+    var last = list[list.length - 1];
+    list.push(Math.round(last * 0.86), Math.round(last * 0.74),
+              Math.round(last * 0.63), Math.round(last * 0.54), Math.round(last * 0.46));
+    var out = null;
+    for (var i = 0; i < list.length; i++) {
+      var size = Math.max(22, list[i]);
+      setFont(c, size, DISP(), DW(), sp(spacing));
+      var lines = wrapLines(c, text, maxW);
+      var lh = size * baseLH * FT().lh;
+      out = { size: size, lines: lines, lh: FT().lh, lineH: lh, h: lines.length * lh };
+      var okLines = !maxLines || lines.length <= maxLines;
+      var okH = !maxH || out.h <= maxH;
+      if (okLines && okH) return out;
+    }
+    return out;
   }
 
   function drawLines(c, lines, x, top, lineH) {
@@ -555,21 +653,79 @@
     c.closePath();
   }
 
+  function tplHasTag() { return currentTpl().fields.indexOf('tag') >= 0; }
   function headlineText() {
-    var t = (state.headline || '').trim().toUpperCase();
-    return state.siren && state.template === 'A' ? '🚨 ' + t : t;
+    var t = up((state.headline || '').trim());
+    return (state.siren && !tplHasTag()) ? '🚨 ' + t : t;
   }
-  function up(s) { return (s || '').toUpperCase(); }
+  function up(s) { return state.caps ? (s || '').toUpperCase() : (s || ''); }
   function has(s) { return !!(s || '').trim(); }
 
   /* ---------- blocos reutilizáveis ---------- */
 
-  function drawPhoto(c, idx, x, y, w, h) {
-    photoRects[idx] = { x: x, y: y, w: w, h: h };
+  /* ---------- censura da foto 2 ---------- */
+
+  var CAN_FILTER = (function () {
+    try {
+      var t = document.createElement('canvas').getContext('2d');
+      t.filter = 'blur(2px)';
+      return t.filter === 'blur(2px)';
+    } catch (e) { return false; }
+  })();
+
+  var cenCache = { key: '', cv: null };
+
+  function censoredLayer(ph, w, h) {
+    w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h));
+    var type = (state.censorType === 'pixel' || !CAN_FILTER) ? 'pixel' : 'blur';
+    var key = [ph.name, w, h, ph.zoom, ph.ox.toFixed(3), ph.oy.toFixed(3), type, state.censorAmount].join('|');
+    if (cenCache.key === key && cenCache.cv) return cenCache.cv;
+
+    var base = document.createElement('canvas');
+    base.width = w; base.height = h;
+    var bc = base.getContext('2d');
+    var iw = ph.img.naturalWidth, ih = ph.img.naturalHeight;
+    var sc = Math.max(w / iw, h / ih) * ph.zoom;
+    var dw = iw * sc, dh = ih * sc;
+    var mx = Math.max(0, (dw - w) / 2), my = Math.max(0, (dh - h) / 2);
+    bc.drawImage(ph.img, (w - dw) / 2 + ph.ox * mx, (h - dh) / 2 + ph.oy * my, dw, dh);
+
+    var out = document.createElement('canvas');
+    out.width = w; out.height = h;
+    var oc = out.getContext('2d');
+    var amt = Math.max(10, Math.min(100, state.censorAmount)) / 100;
+    var ref = Math.min(w, h);
+
+    if (type === 'pixel') {
+      var f = Math.max(2, Math.round(ref * 0.09 * amt));
+      var sw = Math.max(1, Math.round(w / f)), sh = Math.max(1, Math.round(h / f));
+      var sm = document.createElement('canvas');
+      sm.width = sw; sm.height = sh;
+      sm.getContext('2d').drawImage(base, 0, 0, sw, sh);
+      oc.imageSmoothingEnabled = false;
+      oc.drawImage(sm, 0, 0, sw, sh, 0, 0, w, h);
+    } else {
+      var px = Math.max(1, ref * 0.13 * amt);
+      var pad = Math.ceil(px * 2); // sobra desenhada fora do recorte, senão a borda desbota
+      oc.filter = 'blur(' + px.toFixed(1) + 'px)';
+      oc.drawImage(base, -pad, -pad, w + pad * 2, h + pad * 2);
+      oc.filter = 'none';
+    }
+
+    cenCache.key = key; cenCache.cv = out;
+    return out;
+  }
+
+  function drawPhoto(c, idx, x, y, w, h, pathFn, dragRect) {
+    photoRects[idx] = dragRect || { x: x, y: y, w: w, h: h };
     var ph = state.photos[idx];
     c.save();
-    c.beginPath(); c.rect(x, y, w, h); c.clip();
-    if (ph.img) {
+    c.beginPath();
+    if (pathFn) pathFn(c); else c.rect(x, y, w, h);
+    c.clip();
+    if (ph.img && idx === 1 && state.censorOn) {
+      c.drawImage(censoredLayer(ph, w, h), x, y, w, h);
+    } else if (ph.img) {
       var iw = ph.img.naturalWidth, ih = ph.img.naturalHeight;
       var s = Math.max(w / iw, h / ih) * ph.zoom;
       var dw = iw * s, dh = ih * s;
@@ -594,11 +750,12 @@
     c.restore();
   }
 
-  function splitPhotos(c, F, top, bottom, gap) {
-    var half = (F.w - gap) / 2;
-    drawPhoto(c, 0, 0, top, half, bottom - top);
-    drawPhoto(c, 1, half + gap, top, half, bottom - top);
+  function splitBox(c, x, y, w, h, gap) {
+    var half = (w - gap) / 2;
+    drawPhoto(c, 0, x, y, half, h);
+    drawPhoto(c, 1, x + half + gap, y, half, h);
   }
+  function splitPhotos(c, F, top, bottom, gap) { splitBox(c, 0, top, F.w, bottom - top, gap); }
 
   function logoCircle(c, x, y, d, ring) {
     var cx = x + d / 2, cy = y + d / 2, r = d / 2 - (ring ? ring / 2 : 0);
@@ -613,7 +770,7 @@
       c.drawImage(av.img, cx - (iw * s) / 2, cy - (ih * s) / 2, iw * s, ih * s);
     } else {
       c.fillStyle = accentOn(T().logoFill);
-      setFont(c, d * 0.41, ANTON, 400, 1);
+      setFont(c, d * 0.41, DISP(), DW(), 1);
       c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillText(up(state.initials) || 'NB', cx, cy + d * 0.03);
       clearSpacing(c);
@@ -624,7 +781,7 @@
 
   // pílula com texto; devolve a largura ocupada
   function textPill(c, text, x, y, o) {
-    setFont(c, o.size, o.family || ANTON, o.weight || 400, o.spacing || 0);
+    setFont(c, o.size, o.family || DISP(), o.weight || DW(), o.spacing || 0);
     var tw = c.measureText(text).width;
     var w = tw + o.padX * 2, h = o.height;
     c.fillStyle = o.bg;
@@ -646,7 +803,7 @@
   }
 
   function brandChip(c, x, y) {
-    setFont(c, 38, ANTON, 400, 1);
+    setFont(c, 38, DISP(), DW(), 1);
     var bw = c.measureText(up(state.brand)).width;
     clearSpacing(c);
     var chipW = 16 + 68 + 18 + bw + 30, chipH = 100;
@@ -655,11 +812,38 @@
     c.save(); c.globalAlpha = 0.22; c.strokeStyle = T().ink; c.lineWidth = 3; c.stroke(); c.restore();
     logoCircle(c, x + 16, y + 16, 68, 3);
     c.fillStyle = T().ink;
-    setFont(c, 38, ANTON, 400, 1);
+    setFont(c, 38, DISP(), DW(), 1);
     c.textAlign = 'left'; c.textBaseline = 'middle';
     c.fillText(up(state.brand), x + 16 + 68 + 18, y + chipH / 2 + 2);
     clearSpacing(c);
     return { w: chipW, h: chipH };
+  }
+
+  // marca em linha, para viver dentro de um bloco sólido em vez de flutuar sobre a foto
+  function brandLine(c, x, y, d, nameSize) {
+    logoCircle(c, x, y, d, 3);
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillStyle = T().ink;
+    setFont(c, nameSize, DISP(), DW(), sp(0.5));
+    c.fillText(up(state.brand), x + d + 18, y + d / 2 + 2);
+    clearSpacing(c);
+    return d;
+  }
+
+  // chamada só de contorno: sem faixa preenchida
+  function ctaOutline(c, x, y, size, padX, height, color) {
+    var label = up(state.cta);
+    setFont(c, size, DISP(), DW(), sp(1.5));
+    var tw = c.measureText(label).width;
+    var w = tw + padX * 2 + 54;
+    roundRect(c, x, y, w, height, height / 2);
+    c.lineWidth = 5; c.strokeStyle = color; c.stroke();
+    c.fillStyle = color;
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillText(label, x + padX, y + height / 2 + 3);
+    clearSpacing(c);
+    arrow(c, x + padX + tw + 28, y + height / 2, 30, color);
+    return w;
   }
 
   function ctaPill(c, x, y, size, padX, height, bg, fg, border) {
@@ -676,102 +860,113 @@
 
   /* ---------- modelos ---------- */
 
+  /* margens da interface do Instagram/Facebook: com o ajuste ligado, texto e
+     chamada ficam dentro da faixa visivel; foto e faixas seguem sangrando */
+  function sT(F) { return (state.safeLayout && F.safe) ? F.safe[0] : 0; }
+  function sB(F) { return (state.safeLayout && F.safe) ? F.safe[1] : 0; }
+  /* piso de area de foto: a imagem reserva o espaco dela antes do texto */
+  function ph(F, frac) { return Math.round(F.h * frac); }
+
   function renderA(c, F) {
-    var PAD = 44;
+    var PAD = 44, top = 46 + sT(F);
     c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
-    logoCircle(c, PAD, 46, 132, 5);
+
+    logoCircle(c, PAD, top, 132, 5);
     c.textAlign = 'left'; c.textBaseline = 'top';
     c.fillStyle = T().ink;
-    setFont(c, 62, ANTON, 400, 0.5);
-    c.fillText(up(state.brand), 202, 62);
+    setFont(c, 62, DISP(), DW(), sp(0.5));
+    c.fillText(up(state.brand), 202, top + 16);
     clearSpacing(c);
     c.fillStyle = T().inkSoft;
     setFont(c, 38, ARCH, 600, 0);
-    c.fillText(state.handle || '', 202, 130);
+    c.fillText(state.handle || '', 202, top + 84);
 
-    var fit = fitHeadline(c, headlineText(), F.w - PAD * 2, [80, 70, 61, 53], F.maxLines, 0.5);
-    var lineH = fit.size * 1.06;
+    var hTop = top + 166;
+    var photoTopMax = F.h - ph(F, 0.50);
+    var fit = fitBox(c, headlineText(), F.w - PAD * 2, photoTopMax - hTop - 38, [80, 70, 61, 53], 1.06, 5, 0.5);
     c.fillStyle = T().ink;
-    drawLines(c, fit.lines, PAD, 212, lineH);
+    drawLines(c, fit.lines, PAD, hTop, fit.lineH);
     clearSpacing(c);
 
-    var photoTop = Math.min(212 + fit.lines.length * lineH + 38, F.h - Math.round(F.h * 0.34));
-    splitPhotos(c, F, photoTop, F.h, 5);
+    splitPhotos(c, F, Math.min(hTop + fit.h + 38, photoTopMax), F.h, 5);
 
     if (has(state.cta)) {
-      setFont(c, 42, ANTON, 400, 1.5);
+      setFont(c, 42, DISP(), DW(), sp(1.5));
       var w = c.measureText(up(state.cta)).width + 92;
       clearSpacing(c);
-      ctaPill(c, (F.w - w) / 2, F.h - F.ctaGap - 82, 42, 46, 82, scrim(0.66), T().ink, true);
+      ctaPill(c, (F.w - w) / 2, F.h - sB(F) - F.bottomPad - 82, 42, 46, 82, scrim(0.66), T().ink, true);
     }
   }
 
   function renderB(c, F) {
-    var PAD = 44;
+    var PAD = 44, onBar = onColor(state.accent);
     c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
 
-    var barH = 126, onBar = onColor(state.accent);
-    c.fillStyle = state.accent; c.fillRect(0, 0, F.w, barH);
-    logoCircle(c, PAD, 26, 74, 0);
+    var barH = 126, barFill = barH + sT(F), barMid = sT(F) + barH / 2;
+    c.fillStyle = state.accent; c.fillRect(0, 0, F.w, barFill);
+    logoCircle(c, PAD, barMid - 37, 74, 0);
     c.fillStyle = onBar;
-    setFont(c, 44, ANTON, 400, 1);
+    setFont(c, 44, DISP(), DW(), sp(1));
     c.textAlign = 'left'; c.textBaseline = 'middle';
-    c.fillText(up(state.brand), 138, barH / 2 + 2);
+    c.fillText(up(state.brand), 138, barMid + 2);
     clearSpacing(c);
     c.globalAlpha = 0.62;
     setFont(c, 28, ARCH, 700, 3);
     c.textAlign = 'right';
-    c.fillText('AGORA', F.w - PAD, barH / 2 + 1);
+    c.fillText('AGORA', F.w - PAD, barMid + 1);
     c.globalAlpha = 1;
     clearSpacing(c);
 
-    var y = barH + 52;
+    var y = barFill + 52;
     if (has(state.tag)) {
       c.textAlign = 'left'; c.textBaseline = 'middle';
       var tx = PAD;
       if (state.siren) {
         setFont(c, 44, ARCH, 400, 0);
         c.fillStyle = T().ink;
-        c.fillText('🚨', tx, y + 24);
-        tx += c.measureText('🚨').width + 16;
+        c.fillText(SIREN, tx, y + 24);
+        tx += c.measureText(SIREN).width + 16;
       }
       c.fillStyle = accentOn(T().bg);
-      setFont(c, 34, ANTON, 400, 4);
+      setFont(c, 34, DISP(), DW(), sp(4));
       c.fillText(up(state.tag), tx, y + 24);
       clearSpacing(c);
       y += 76;
     }
 
-    var fit = fitHeadline(c, headlineText(), F.w - PAD * 2, [104, 90, 78, 66, 56], F.maxLines, 0.5);
-    var lineH = fit.size * 1.02;
-    c.fillStyle = T().ink;
-    drawLines(c, fit.lines, PAD, y, lineH);
-    clearSpacing(c);
-    y += fit.lines.length * lineH;
-
+    var subLines = [];
     if (has(state.sub)) {
+      setFont(c, 36, ARCH, 600, 0);
+      subLines = wrapLines(c, state.sub, F.w - PAD * 2);
+    }
+    var subH = subLines.length ? 28 + subLines.length * 46.8 : 0;
+
+    var photoTopMax = F.h - ph(F, 0.40);
+    var fit = fitBox(c, headlineText(), F.w - PAD * 2, photoTopMax - y - subH - 46, [104, 90, 78, 66, 56], 1.02, 5, 0.5);
+    c.fillStyle = T().ink;
+    drawLines(c, fit.lines, PAD, y, fit.lineH);
+    clearSpacing(c);
+    y += fit.h;
+
+    if (subLines.length) {
       y += 28;
       c.fillStyle = T().inkMuted;
       setFont(c, 36, ARCH, 600, 0);
-      var subLines = wrapLines(c, state.sub, F.w - PAD * 2);
       drawLines(c, subLines, PAD, y, 46.8);
       y += subLines.length * 46.8;
     }
     y += 46;
 
-    var ctaH = 120, ctaTop = F.h - ctaH;
-    splitPhotos(c, F, Math.min(y, ctaTop - Math.round(F.h * 0.2)), ctaTop, 5);
+    var ctaH = 104, ctaTop = F.h - sB(F) - F.bottomPad - ctaH;
+    splitPhotos(c, F, Math.min(y, photoTopMax), ctaTop - 34, 5);
 
-    c.fillStyle = state.accent; c.fillRect(0, ctaTop, F.w, ctaH);
-    var label = up(state.cta);
-    setFont(c, 52, ANTON, 400, 1.5);
-    var lw = c.measureText(label).width;
-    var startX = (F.w - (lw + 62)) / 2;
-    c.fillStyle = onBar;
-    c.textAlign = 'left'; c.textBaseline = 'middle';
-    c.fillText(label, startX, ctaTop + ctaH / 2 + 3);
-    clearSpacing(c);
-    arrow(c, startX + lw + 32, ctaTop + ctaH / 2, 32, onBar);
+    if (has(state.cta)) {
+      var acc = accentOn(T().bg);
+      setFont(c, 48, DISP(), DW(), sp(1.5));
+      var cw = c.measureText(up(state.cta)).width + 92 + 54;
+      clearSpacing(c);
+      ctaOutline(c, (F.w - cw) / 2, ctaTop, 48, 46, ctaH, acc);
+    }
   }
 
   function renderC(c, F) {
@@ -780,32 +975,33 @@
     splitPhotos(c, F, 0, F.h, 0);
 
     var ctaH = 92, hasCta = has(state.cta);
-    var ctaTop = F.h - F.bottomPad - (hasCta ? ctaH : 0);
-    var fit = fitHeadline(c, headlineText(), F.w - PAD * 2, [88, 76, 66, 57], F.maxLines - 1, 0.5);
-    var lineH = fit.size * 1.04;
-    var headTop = ctaTop - (hasCta ? 30 : 0) - fit.lines.length * lineH;
+    var ctaTop = F.h - sB(F) - F.bottomPad - (hasCta ? ctaH : 0);
     var hasTag = has(state.tag), tagH = 62;
+    var textBottom = ctaTop - (hasCta ? 30 : 0);
+    var fit = fitBox(c, headlineText(), F.w - PAD * 2,
+      textBottom - ph(F, 0.52) - (hasTag ? tagH + 30 : 0), [88, 76, 66, 57], 1.04, 4, 0.5);
+    var headTop = textBottom - fit.h;
     var tagTop = headTop - 30 - tagH;
 
-    var overlayTop = Math.min((hasTag ? tagTop : headTop) - 200, Math.round(F.h * 0.49));
+    var overlayTop = (hasTag ? tagTop : headTop) - 250;
     var grad = c.createLinearGradient(0, overlayTop, 0, F.h);
     grad.addColorStop(0, scrim(0));
-    grad.addColorStop(0.26, scrim(0.86));
-    grad.addColorStop(0.6, scrim(0.97));
+    grad.addColorStop(0.24, scrim(0.86));
+    grad.addColorStop(0.55, scrim(0.97));
     grad.addColorStop(1, scrim(0.99));
     c.fillStyle = grad; c.fillRect(0, overlayTop, F.w, F.h - overlayTop);
 
-    brandChip(c, PAD, 44);
+    brandLine(c, PAD, (hasTag ? tagTop : headTop) - 118, 76, 40);
 
     if (hasTag) {
-      textPill(c, (state.siren ? '🚨 ' : '') + up(state.tag), PAD, tagTop, {
+      textPill(c, (state.siren ? SIREN + ' ' : '') + up(state.tag), PAD, tagTop, {
         size: 36, padX: 28, height: tagH, bg: RED, fg: '#ffffff', spacing: 4, radius: 0
       });
     }
 
     c.fillStyle = T().ink;
-    setFont(c, fit.size, ANTON, 400, 0.5);
-    drawLines(c, fit.lines, PAD, headTop, lineH);
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, PAD, headTop, fit.lineH);
     clearSpacing(c);
 
     if (hasCta) ctaPill(c, PAD, ctaTop, 46, 54, ctaH, state.accent, onColor(state.accent));
@@ -815,138 +1011,146 @@
     var PAD = 44;
     c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
 
-    var stripH = 104;
-    var blockH = Math.round(F.h * (F.id === '9:16' ? 0.40 : 0.44));
+    var stripH = 104, stripFill = stripH + sT(F), stripMid = sT(F) + stripH / 2;
+    var innerX = PAD + 22, innerW = F.w - innerX - PAD;
+    var hasCta = has(state.cta), ctaH = 84;
+    var maxBlockH = F.h - stripFill - ph(F, 0.42);
+    var fit = fitBox(c, headlineText(), innerW,
+      maxBlockH - 46 - (hasCta ? 34 + ctaH : 0) - 46 - sB(F), [82, 71, 62, 54], 1.05, 4, 0.5);
+    var blockH = 46 + fit.h + (hasCta ? 34 + ctaH : 0) + 46 + sB(F);
     var blockTop = F.h - blockH;
-    splitPhotos(c, F, stripH, blockTop, 4);
 
-    // faixa de plantão
-    c.fillStyle = RED; c.fillRect(0, 0, F.w, stripH);
+    splitPhotos(c, F, stripFill, blockTop, 4);
+
+    c.fillStyle = RED; c.fillRect(0, 0, F.w, stripFill);
     c.fillStyle = '#ffffff';
-    setFont(c, 44, ANTON, 400, 6);
+    setFont(c, 44, DISP(), DW(), sp(6));
     c.textAlign = 'left'; c.textBaseline = 'middle';
-    c.fillText((state.siren ? '🚨 ' : '') + (has(state.tag) ? up(state.tag) : 'PLANTÃO'), PAD, stripH / 2 + 2);
+    c.fillText((state.siren ? SIREN + ' ' : '') + up(has(state.tag) ? state.tag : 'Plantão'), PAD, stripMid + 2);
     clearSpacing(c);
     c.fillStyle = 'rgba(255,255,255,0.82)';
     setFont(c, 30, ARCH, 700, 2);
     c.textAlign = 'right';
-    c.fillText(up(state.brand), F.w - PAD, stripH / 2 + 1);
+    c.fillText(up(state.brand), F.w - PAD, stripMid + 1);
     clearSpacing(c);
 
-    // bloco sólido inferior
     c.fillStyle = T().bg; c.fillRect(0, blockTop, F.w, blockH);
     c.fillStyle = accentOn(T().bg); c.fillRect(0, blockTop, 14, blockH);
 
-    var innerX = PAD + 22, innerW = F.w - innerX - PAD;
-    var hasCta = has(state.cta), ctaH = 84;
-    var fit = fitHeadline(c, headlineText(), innerW, [82, 71, 62, 54], F.maxLines - 1, 0.5);
-    var lineH = fit.size * 1.05;
     var textTop = blockTop + 46;
     c.fillStyle = T().ink;
-    setFont(c, fit.size, ANTON, 400, 0.5);
-    drawLines(c, fit.lines, innerX, textTop, lineH);
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, innerX, textTop, fit.lineH);
     clearSpacing(c);
 
-    if (hasCta) {
-      var y = Math.min(textTop + fit.lines.length * lineH + 34, F.h - F.bottomPad - ctaH);
-      ctaPill(c, innerX, y, 42, 46, ctaH, state.accent, onColor(state.accent));
-    }
+    if (hasCta) ctaPill(c, innerX, textTop + fit.h + 34, 42, 46, ctaH, state.accent, onColor(state.accent));
   }
 
   function renderE(c, F) {
     var PAD = 44;
     c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
 
-    var barH = 96;
-    var blockH = Math.round(F.h * (F.id === '9:16' ? 0.46 : 0.50));
-    var blockTop = F.h - blockH;
-    splitPhotos(c, F, barH, blockTop, 4);
+    var barH = 96, barFill = barH + sT(F), barMid = sT(F) + barH / 2;
+    var innerX = PAD + 8, innerW = F.w - innerX - PAD;
+    var hasCta = has(state.cta);
 
-    c.fillStyle = state.accent; c.fillRect(0, 0, F.w, barH);
-    logoCircle(c, PAD, 14, 68, 0);
+    var srcLines = [];
+    if (has(state.source)) {
+      setFont(c, 32, ARCH, 700, 1.5);
+      srcLines = wrapLines(c, '\u2014 ' + state.source, innerW);
+      clearSpacing(c);
+    }
+    var srcH = srcLines.length ? 26 + srcLines.length * 42 : 0;
+
+    var maxBlockH = F.h - barFill - ph(F, 0.34);
+    var fit = fitBox(c, up((state.headline || '').trim()), innerW,
+      maxBlockH - 150 - srcH - (hasCta ? 26 + 80 : 0) - 44 - sB(F), [72, 63, 55, 48], 1.08, 4, 0.5);
+    var blockH = 150 + fit.h + srcH + (hasCta ? 26 + 80 : 0) + 44 + sB(F);
+    var blockTop = F.h - blockH;
+
+    splitPhotos(c, F, barFill, blockTop, 4);
+
+    c.fillStyle = state.accent; c.fillRect(0, 0, F.w, barFill);
+    logoCircle(c, PAD, barMid - 34, 68, 0);
     c.fillStyle = onColor(state.accent);
-    setFont(c, 40, ANTON, 400, 1);
+    setFont(c, 40, DISP(), DW(), sp(1));
     c.textAlign = 'left'; c.textBaseline = 'middle';
-    c.fillText(up(state.brand), PAD + 68 + 18, barH / 2 + 2);
+    c.fillText(up(state.brand), PAD + 86, barMid + 2);
     clearSpacing(c);
 
     c.fillStyle = T().bg; c.fillRect(0, blockTop, F.w, blockH);
-
-    // aspas
     c.fillStyle = accentOn(T().bg);
-    setFont(c, 200, ANTON, 400, 0);
+    setFont(c, 200, DISP(), DW(), 0);
     c.textAlign = 'left'; c.textBaseline = 'top';
-    c.fillText('“', PAD, blockTop + 6);
+    c.fillText('\u201C', PAD, blockTop + 6);
 
-    var innerX = PAD + 8, innerW = F.w - innerX - PAD;
-    var fit = fitHeadline(c, up((state.headline || '').trim()), innerW, [72, 63, 55, 48], F.maxLines - 1, 0.5);
-    var lineH = fit.size * 1.08;
     var textTop = blockTop + 150;
     c.fillStyle = T().ink;
-    setFont(c, fit.size, ANTON, 400, 0.5);
-    drawLines(c, fit.lines, innerX, textTop, lineH);
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, innerX, textTop, fit.lineH);
     clearSpacing(c);
 
-    var y = textTop + fit.lines.length * lineH + 26;
-    if (has(state.source)) {
+    var y = textTop + fit.h + 26;
+    if (srcLines.length) {
       c.fillStyle = accentOn(T().bg);
       setFont(c, 32, ARCH, 700, 1.5);
       c.textAlign = 'left'; c.textBaseline = 'top';
-      var srcLines = wrapLines(c, '— ' + state.source, innerW);
       drawLines(c, srcLines, innerX, y, 42);
       clearSpacing(c);
       y += srcLines.length * 42;
     }
-    if (has(state.cta)) {
-      var ctaY = Math.min(y + 26, F.h - F.bottomPad - 80);
-      ctaPill(c, innerX, ctaY, 40, 44, 80, state.accent, onColor(state.accent));
-    }
+    if (hasCta) ctaPill(c, innerX, y + 26, 40, 44, 80, state.accent, onColor(state.accent));
   }
 
   function renderF(c, F) {
     var PAD = 44;
     c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
 
-    var blockH = Math.round(F.h * (F.id === '9:16' ? 0.34 : 0.38));
+    var hasCta = has(state.cta), ctaH = 84;
+    var hasLbl = has(state.labelA) || has(state.labelB);
+    var lblH = hasLbl ? 72 : 0, lblPad = hasLbl ? 26 + 26 : 40;
+    var maxBlockH = F.h - ph(F, 0.46);
+    var fit = fitBox(c, headlineText(), F.w - PAD * 2,
+      maxBlockH - lblH - lblPad - (hasCta ? 30 + ctaH : 0) - 40 - sB(F), [76, 66, 58, 50], 1.05, 4, 0.5);
+    var blockH = lblH + lblPad + fit.h + (hasCta ? 30 + ctaH : 0) + 40 + sB(F);
     var blockTop = F.h - blockH;
+
     var half = (F.w - 6) / 2;
     drawPhoto(c, 0, 0, 0, half, blockTop);
     drawPhoto(c, 1, half + 6, 0, half, blockTop);
 
-    brandChip(c, PAD, 40);
+    c.fillStyle = T().bg; c.fillRect(0, blockTop, F.w, blockH);
 
-    // etiquetas por metade
-    var labels = [state.labelA, state.labelB];
-    var lblY = blockTop - 118;
-    for (var i = 0; i < 2; i++) {
-      if (!has(labels[i])) continue;
-      setFont(c, 40, ANTON, 400, 3);
-      var tw = c.measureText(up(labels[i])).width;
-      clearSpacing(c);
-      var w = tw + 68;
-      var cx = i === 0 ? half / 2 : half + 6 + half / 2;
-      textPill(c, up(labels[i]), cx - w / 2, lblY, {
-        size: 40, padX: 34, height: 78,
-        bg: i === 0 ? scrim(0.8) : state.accent,
-        fg: i === 0 ? T().ink : onColor(state.accent),
-        spacing: 3, nudge: 3, border: i === 0
-      });
+    var ty = blockTop + (hasLbl ? 26 : 40);
+    if (hasLbl) {
+      var labels = [state.labelA, state.labelB];
+      for (var i = 0; i < 2; i++) {
+        if (!has(labels[i])) continue;
+        setFont(c, 38, DISP(), DW(), sp(3));
+        var tw = c.measureText(up(labels[i])).width;
+        clearSpacing(c);
+        var w = tw + 60;
+        var cx = i === 0 ? half / 2 : half + 6 + half / 2;
+        textPill(c, up(labels[i]), cx - w / 2, ty, {
+          size: 38, padX: 30, height: lblH,
+          bg: i === 0 ? scrim(0.001) : state.accent,
+          fg: i === 0 ? T().ink : onColor(state.accent),
+          spacing: 3, nudge: 3, border: i === 0
+        });
+      }
+      ty += lblH + 26;
     }
 
-    c.fillStyle = T().bg; c.fillRect(0, blockTop, F.w, blockH);
-    var fit = fitHeadline(c, headlineText(), F.w - PAD * 2, [76, 66, 58, 50], F.maxLines - 2, 0.5);
-    var lineH = fit.size * 1.05;
     c.fillStyle = T().ink;
-    setFont(c, fit.size, ANTON, 400, 0.5);
-    drawLines(c, fit.lines, PAD, blockTop + 40, lineH);
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, PAD, ty, fit.lineH);
     clearSpacing(c);
 
-    if (has(state.cta)) {
-      setFont(c, 42, ANTON, 400, 1.5);
+    if (hasCta) {
+      setFont(c, 42, DISP(), DW(), sp(1.5));
       var cw = c.measureText(up(state.cta)).width + 92;
       clearSpacing(c);
-      var cy = Math.min(blockTop + 40 + fit.lines.length * lineH + 30, F.h - F.bottomPad - 84);
-      ctaPill(c, (F.w - cw) / 2, cy, 42, 46, 84, state.accent, onColor(state.accent));
+      ctaPill(c, (F.w - cw) / 2, ty + fit.h + 30, 42, 46, ctaH, state.accent, onColor(state.accent));
     }
   }
 
@@ -954,26 +1158,26 @@
     var PAD = 44;
     c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
 
-    var fit = fitHeadline(c, headlineText(), F.w - PAD * 2, [78, 68, 60, 52], F.maxLines - 1, 0.5);
-    var lineH = fit.size * 1.05;
-    var headTop = F.id === '9:16' ? 186 : 158;
-    var topH = headTop + fit.lines.length * lineH + 46;
-
     var optH = 118, optGap = 16;
-    var optTop = F.h - F.bottomPad - optH;
+    var optTop = F.h - sB(F) - F.bottomPad - optH;
+    var chipTop = 34 + sT(F);
+    var headTop = chipTop + 130;
+    var topHMax = optTop - 170 - ph(F, 0.26);
+    var fit = fitBox(c, headlineText(), F.w - PAD * 2, topHMax - headTop - 46, [78, 68, 60, 52], 1.05, 4, 0.5);
+    var topH = headTop + fit.h + 46;
+
     splitPhotos(c, F, topH, F.h, 5);
 
-    // véu inferior para as alternativas respirarem
-    var veil = c.createLinearGradient(0, optTop - 180, 0, F.h);
+    var veil = c.createLinearGradient(0, optTop - 170, 0, F.h);
     veil.addColorStop(0, scrim(0));
     veil.addColorStop(1, scrim(0.92));
-    c.fillStyle = veil; c.fillRect(0, optTop - 180, F.w, F.h - optTop + 180);
+    c.fillStyle = veil; c.fillRect(0, optTop - 170, F.w, F.h - optTop + 170);
 
     c.fillStyle = T().bg; c.fillRect(0, 0, F.w, topH);
-    brandChip(c, PAD, 34);
+    brandChip(c, PAD, chipTop);
     c.fillStyle = T().ink;
-    setFont(c, fit.size, ANTON, 400, 0.5);
-    drawLines(c, fit.lines, PAD, headTop, lineH);
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, PAD, headTop, fit.lineH);
     clearSpacing(c);
 
     var optW = (F.w - PAD * 2 - optGap) / 2;
@@ -988,14 +1192,381 @@
         roundRect(c, x + 2.5, optTop + 2.5, optW - 5, optH - 5, (optH - 5) / 2); c.stroke();
       }
       c.fillStyle = filled ? onColor(state.accent) : T().ink;
-      setFont(c, 50, ANTON, 400, 2);
+      setFont(c, 50, DISP(), DW(), sp(2));
       c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillText(up(opts[i]) || (i === 0 ? 'SIM' : 'NÃO'), x + optW / 2, optTop + optH / 2 + 3);
       clearSpacing(c);
     }
   }
 
-  var RENDERERS = { A: renderA, B: renderB, C: renderC, D: renderD, E: renderE, F: renderF, G: renderG };
+  function renderH(c, F) {
+    var M = 52, top = 46 + sT(F);
+    c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
+
+    logoCircle(c, M, top, 104, 4);
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillStyle = T().ink;
+    setFont(c, 52, DISP(), DW(), sp(0.5));
+    c.fillText(up(state.brand), M + 126, top + 38);
+    clearSpacing(c);
+    c.fillStyle = T().inkSoft;
+    setFont(c, 30, ARCH, 600, 0);
+    c.fillText(state.handle || '', M + 126, top + 78);
+
+    var cardTop = top + 140;
+    var floor = F.h - sB(F) - F.bottomPad;
+    var hasCta = has(state.cta), ctaH = 84;
+    var cardMin = ph(F, 0.36);
+    var fit = fitBox(c, headlineText(), F.w - M * 2,
+      floor - cardTop - cardMin - 34 - (hasCta ? 28 + ctaH : 0), [74, 65, 57, 50], 1.05, 4, 0.5);
+    var cardH = Math.max(floor - (fit.h + (hasCta ? 28 + ctaH : 0)) - 34 - cardTop, cardMin);
+
+    c.save();
+    roundRect(c, M, cardTop, F.w - M * 2, cardH, 26); c.clip();
+    splitBox(c, M, cardTop, F.w - M * 2, cardH, 6);
+    c.restore();
+    roundRect(c, M, cardTop, F.w - M * 2, cardH, 26);
+    c.lineWidth = 6; c.strokeStyle = accentOn(T().bg); c.stroke();
+
+    var ty = cardTop + cardH + 34;
+    c.fillStyle = T().ink;
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, M, ty, fit.lineH);
+    clearSpacing(c);
+
+    if (hasCta) ctaPill(c, M, ty + fit.h + 28, 42, 46, ctaH, state.accent, onColor(state.accent));
+  }
+
+  function renderI(c, F) {
+    var PAD = 44;
+    c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
+
+    var xTop = 660, xBot = 430;
+    drawPhoto(c, 0, 0, 0, Math.max(xTop, xBot), F.h, function (cc) {
+      cc.moveTo(0, 0); cc.lineTo(xTop, 0); cc.lineTo(xBot, F.h); cc.lineTo(0, F.h); cc.closePath();
+    }, { x: 0, y: 0, w: F.w / 2, h: F.h });
+    drawPhoto(c, 1, xBot, 0, F.w - xBot, F.h, function (cc) {
+      cc.moveTo(xTop, 0); cc.lineTo(F.w, 0); cc.lineTo(F.w, F.h); cc.lineTo(xBot, F.h); cc.closePath();
+    }, { x: F.w / 2, y: 0, w: F.w / 2, h: F.h });
+
+    var ctaH = 92, hasCta = has(state.cta);
+    var ctaTop = F.h - sB(F) - F.bottomPad - (hasCta ? ctaH : 0);
+    var hasTag = has(state.tag), tagH = 62;
+    var textBottom = ctaTop - (hasCta ? 30 : 0);
+    var fit = fitBox(c, headlineText(), F.w - PAD * 2,
+      textBottom - ph(F, 0.52) - (hasTag ? tagH + 28 : 0), [84, 73, 64, 56], 1.04, 4, 0.5);
+    var headTop = textBottom - fit.h;
+    var tagTop = headTop - 28 - tagH;
+
+    var gTop = (hasTag ? tagTop : headTop) - 250;
+    var grad = c.createLinearGradient(0, gTop, 0, F.h);
+    grad.addColorStop(0, scrim(0));
+    grad.addColorStop(0.3, scrim(0.88));
+    grad.addColorStop(1, scrim(0.99));
+    c.fillStyle = grad; c.fillRect(0, gTop, F.w, F.h - gTop);
+
+    var yEnd = gTop + 150;
+    var xEnd = xTop + (xBot - xTop) * (yEnd / F.h);
+    c.save();
+    c.strokeStyle = state.accent; c.lineWidth = 12;
+    c.beginPath(); c.moveTo(xTop, 0); c.lineTo(xEnd, yEnd); c.stroke();
+    c.restore();
+
+    brandLine(c, PAD, (hasTag ? tagTop : headTop) - 118, 76, 40);
+
+    if (hasTag) {
+      textPill(c, (state.siren ? SIREN + ' ' : '') + up(state.tag), PAD, tagTop, {
+        size: 36, padX: 28, height: tagH, bg: RED, fg: '#ffffff', spacing: 4, radius: 0
+      });
+    }
+    c.fillStyle = T().ink;
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, PAD, headTop, fit.lineH);
+    clearSpacing(c);
+    if (hasCta) ctaPill(c, PAD, ctaTop, 46, 54, ctaH, state.accent, onColor(state.accent));
+  }
+
+  function renderJ(c, F) {
+    var PAD = 44;
+    c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
+    splitPhotos(c, F, 0, F.h, 5);
+
+    var tickerH = 84, rowH = 100;
+    var tickerTop = F.h - sB(F) - tickerH;
+    var barMax = tickerTop - rowH - ph(F, 0.46);
+    var fit = fitBox(c, headlineText(), F.w - PAD * 2, barMax - 76, [78, 68, 60, 52], 1.05, 4, 0.5);
+    var barH = 40 + fit.h + 36;
+    var rowTop = tickerTop - barH - rowH;
+
+    var sq = 320;
+    c.fillStyle = state.accent; c.fillRect(0, rowTop, sq, rowH);
+    c.fillStyle = onColor(state.accent);
+    setFont(c, 38, DISP(), DW(), sp(3));
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(up(has(state.tag) ? state.tag : 'Urgente'), sq / 2, rowTop + rowH / 2 + 2);
+    clearSpacing(c);
+    c.fillStyle = scrim(0.96); c.fillRect(sq, rowTop, F.w - sq, rowH);
+    c.fillStyle = T().ink;
+    setFont(c, 34, ARCH, 700, 2);
+    c.textAlign = 'right'; c.textBaseline = 'middle';
+    c.fillText(up(state.brand), F.w - PAD, rowTop + rowH / 2 + 1);
+    clearSpacing(c);
+
+    var barTop = rowTop + rowH;
+    c.fillStyle = T().bg; c.fillRect(0, barTop, F.w, tickerTop - barTop);
+    c.fillStyle = T().ink;
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, PAD, barTop + 40, fit.lineH);
+    clearSpacing(c);
+
+    c.fillStyle = state.accent; c.fillRect(0, tickerTop, F.w, tickerH);
+    c.fillStyle = onColor(state.accent);
+    setFont(c, 38, DISP(), DW(), sp(2));
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    var unit = up(has(state.cta) ? state.cta : 'Saiba mais') + '   \u2022   ';
+    var uw = Math.max(c.measureText(unit).width, 120);
+    for (var x = 24; x < F.w; x += uw) c.fillText(unit, x, tickerTop + tickerH / 2 + 2);
+    clearSpacing(c);
+  }
+
+  function renderK(c, F) {
+    var PAD = 44;
+    c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
+
+    var hasCta = has(state.cta), ctaH = 84;
+    var maxBlockH = F.h - ph(F, 0.50);
+    var fit = fitBox(c, headlineText(), F.w - PAD * 2,
+      maxBlockH - 124 - (hasCta ? 28 + ctaH : 0) - 46 - sB(F), [80, 70, 61, 53], 1.05, 4, 0.5);
+    var blockH = 124 + fit.h + (hasCta ? 28 + ctaH : 0) + 46 + sB(F);
+    var blockTop = F.h - blockH;
+
+    drawPhoto(c, 0, 0, 0, F.w, blockTop);
+    c.fillStyle = T().bg; c.fillRect(0, blockTop, F.w, F.h - blockTop);
+
+    var iS = 360, iX = F.w - PAD - iS, iY = blockTop - iS + 70;
+    c.save();
+    roundRect(c, iX, iY, iS, iS, 24); c.clip();
+    drawPhoto(c, 1, iX, iY, iS, iS);
+    c.restore();
+    roundRect(c, iX, iY, iS, iS, 24);
+    c.lineWidth = 8; c.strokeStyle = state.accent; c.stroke();
+
+    brandLine(c, PAD, blockTop + 22, 68, 38);
+
+    var ty = blockTop + 124;
+    c.fillStyle = T().ink;
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, PAD, ty, fit.lineH);
+    clearSpacing(c);
+    if (hasCta) ctaPill(c, PAD, ty + fit.h + 28, 42, 46, ctaH, state.accent, onColor(state.accent));
+  }
+
+  function renderL(c, F) {
+    var B = 30, PAD = 40;
+    c.fillStyle = state.accent; c.fillRect(0, 0, F.w, F.h);
+    var ix = B, iw = F.w - B * 2;
+    c.fillStyle = T().bg; c.fillRect(ix, B, iw, F.h - B * 2);
+
+    var iy = B + sT(F);
+    var iBottom = F.h - B - sB(F);
+    var lx = ix + PAD;
+
+    logoCircle(c, lx, iy + 30, 96, 4);
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillStyle = T().ink;
+    setFont(c, 50, DISP(), DW(), sp(0.5));
+    c.fillText(up(state.brand), lx + 116, iy + 64);
+    clearSpacing(c);
+    c.fillStyle = T().inkSoft;
+    setFont(c, 30, ARCH, 600, 0);
+    c.fillText(state.handle || '', lx + 116, iy + 102);
+
+    var hTop = iy + 168;
+    var pBottom = iBottom - PAD;
+    var fit = fitBox(c, headlineText(), iw - PAD * 2,
+      pBottom - ph(F, 0.36) - hTop - 30, [76, 66, 58, 51], 1.05, 4, 0.5);
+    c.fillStyle = T().ink;
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, lx, hTop, fit.lineH);
+    clearSpacing(c);
+
+    var pTop = Math.min(hTop + fit.h + 30, pBottom - ph(F, 0.36));
+    splitBox(c, lx, pTop, iw - PAD * 2, pBottom - pTop, 6);
+
+    if (has(state.cta)) {
+      setFont(c, 42, DISP(), DW(), sp(1.5));
+      var w = c.measureText(up(state.cta)).width + 92;
+      clearSpacing(c);
+      ctaPill(c, (F.w - w) / 2, pBottom - 124, 42, 46, 84, state.accent, onColor(state.accent), true);
+    }
+  }
+
+  /* ---------- modelos novos ---------- */
+
+  function renderM(c, F) {
+    var PAD = 44;
+    c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
+    splitPhotos(c, F, 0, F.h, 5);
+
+    var hasCta = has(state.cta), ctaH = 84;
+    var hasTag = has(state.tag), tagH = hasTag ? 56 : 0;
+    var bandBottom = F.h - sB(F) - F.bottomPad - (hasCta ? ctaH + 30 : 0);
+    var fit = fitBox(c, headlineText(), F.w - PAD * 2 - 56,
+      bandBottom - ph(F, 0.48) - 130 - tagH - (hasTag ? 22 : 0) - 54, [76, 66, 58, 50], 1.05, 4, 0.5);
+    var bandH = 130 + tagH + (hasTag ? 22 : 0) + fit.h + 54;
+    var bandTop = bandBottom - bandH;
+
+    c.fillStyle = scrim(0.93);
+    c.fillRect(0, bandTop, F.w, bandH);
+    c.fillStyle = accentOn(T().bg);
+    c.fillRect(0, bandTop, F.w, 8);
+    c.fillRect(0, bandTop + bandH - 8, F.w, 8);
+
+    var y = bandTop + 46;
+    brandLine(c, PAD + 28, y, 62, 36);
+    y += 62 + 22;
+    if (hasTag) {
+      textPill(c, (state.siren ? SIREN + ' ' : '') + up(state.tag), PAD + 28, y, {
+        size: 32, padX: 24, height: tagH, bg: RED, fg: '#ffffff', spacing: 4, radius: 0
+      });
+      y += tagH + 22;
+    }
+    c.fillStyle = T().ink;
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, PAD + 28, y, fit.lineH);
+    clearSpacing(c);
+
+    if (hasCta) {
+      setFont(c, 42, DISP(), DW(), sp(1.5));
+      var w = c.measureText(up(state.cta)).width + 92;
+      clearSpacing(c);
+      ctaPill(c, (F.w - w) / 2, bandTop + bandH + 30, 42, 46, ctaH, state.accent, onColor(state.accent));
+    }
+  }
+
+  function renderN(c, F) {
+    var PAD = 48;
+    c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
+
+    var hasCta = has(state.cta), ctaH = 84;
+    var topBarH = sT(F) + 186;
+    var fit = fitBox(c, headlineText(), F.w - PAD * 2,
+      F.h - topBarH - ph(F, 0.38) - sB(F) - 44 - (hasCta ? 28 + ctaH : 0) - 54, [74, 65, 57, 50], 1.05, 4, 0.5);
+    var botBarH = sB(F) + 44 + fit.h + (hasCta ? 28 + ctaH : 0) + 54;
+    var winBot = F.h - botBarH;
+
+    splitBox(c, 0, topBarH, F.w, winBot - topBarH, 6);
+
+    c.fillStyle = T().bg; c.fillRect(0, 0, F.w, topBarH);
+    c.fillStyle = T().bg; c.fillRect(0, winBot, F.w, F.h - winBot);
+    c.fillStyle = accentOn(T().bg);
+    c.fillRect(0, topBarH - 7, F.w, 7);
+    c.fillRect(0, winBot, F.w, 7);
+
+    logoCircle(c, PAD, sT(F) + 34, 96, 4);
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillStyle = T().ink;
+    setFont(c, 50, DISP(), DW(), sp(0.5));
+    c.fillText(up(state.brand), PAD + 118, sT(F) + 68);
+    clearSpacing(c);
+    c.fillStyle = T().inkSoft;
+    setFont(c, 30, ARCH, 600, 0);
+    c.fillText(state.handle || '', PAD + 118, sT(F) + 106);
+
+    var ty = winBot + 44;
+    c.fillStyle = T().ink;
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, PAD, ty, fit.lineH);
+    clearSpacing(c);
+    if (hasCta) ctaPill(c, PAD, ty + fit.h + 28, 42, 46, ctaH, state.accent, onColor(state.accent));
+  }
+
+  function renderO(c, F) {
+    var PAD = 44, OFF = 16;
+    c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
+    splitPhotos(c, F, 0, F.h, 5);
+
+    var boxW = F.w - PAD * 2 - OFF;
+    var hasCta = has(state.cta), ctaH = 84;
+    var hasTag = has(state.tag), tagH = 58;
+    var boxBottom = F.h - sB(F) - F.bottomPad - (hasCta ? ctaH + 28 : 0) - OFF;
+    var fit = fitBox(c, headlineText(), boxW - 76,
+      boxBottom - ph(F, 0.50) - 158 - (hasTag ? tagH + 22 : 0), [72, 63, 55, 48], 1.05, 4, 0.5);
+    var boxH = 34 + 58 + 22 + fit.h + 44;
+    var boxTop = boxBottom - boxH;
+
+    if (hasTag) {
+      textPill(c, (state.siren ? SIREN + ' ' : '') + up(state.tag), PAD, boxTop - tagH - 22, {
+        size: 34, padX: 26, height: tagH, bg: RED, fg: '#ffffff', spacing: 4, radius: 0
+      });
+    }
+
+    c.fillStyle = state.accent;
+    c.fillRect(PAD + OFF, boxTop + OFF, boxW, boxH);
+    c.fillStyle = T().bg;
+    c.fillRect(PAD, boxTop, boxW, boxH);
+
+    brandLine(c, PAD + 38, boxTop + 34, 58, 34);
+    c.fillStyle = T().ink;
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, PAD + 38, boxTop + 34 + 58 + 22, fit.lineH);
+    clearSpacing(c);
+
+    if (hasCta) ctaPill(c, PAD, boxTop + boxH + OFF + 28, 42, 46, ctaH, state.accent, onColor(state.accent));
+  }
+
+  function renderP(c, F) {
+    var PAD = 44;
+    c.fillStyle = T().bg; c.fillRect(0, 0, F.w, F.h);
+
+    var hasCta = has(state.cta), ctaH = 84;
+    var topY = sT(F) + 140;
+    var safeBottom = F.h - sB(F);
+    var ph1Min = ph(F, 0.26), ph2Vis = ph(F, 0.18);
+    var fit = fitBox(c, headlineText(), F.w - PAD * 2 - 40,
+      safeBottom - topY - ph1Min - ph2Vis - 80 - (hasCta ? ctaH + 30 : 0), [70, 62, 55, 48], 1.05, 3, 0.5);
+    var bandH = 40 + fit.h + 40;
+
+    var avail = safeBottom - topY - bandH - (hasCta ? ctaH + 30 : 0) - 12;
+    var h1 = Math.max(ph1Min, Math.round(avail * 0.52));
+    var bandTop = topY + h1 + 6;
+    var p2Top = bandTop + bandH + 6;
+
+    drawPhoto(c, 0, 0, topY, F.w, h1);
+    drawPhoto(c, 1, 0, p2Top, F.w, F.h - p2Top);
+
+    c.fillStyle = T().bg; c.fillRect(0, 0, F.w, topY);
+    c.fillStyle = T().bg; c.fillRect(0, bandTop, F.w, bandH);
+    c.fillStyle = accentOn(T().bg); c.fillRect(PAD, bandTop, 10, bandH);
+    c.fillStyle = T().ink;
+    setFont(c, fit.size, DISP(), DW(), sp(0.5));
+    drawLines(c, fit.lines, PAD + 30, bandTop + 40, fit.lineH);
+    clearSpacing(c);
+
+    var labels = [state.labelA, state.labelB];
+    var rows = [bandTop - 6 - 66, p2Top + 6];
+    for (var i = 0; i < 2; i++) {
+      if (!has(labels[i])) continue;
+      textPill(c, up(labels[i]), PAD, rows[i], {
+        size: 34, padX: 26, height: 66,
+        bg: i === 0 ? scrim(0.82) : state.accent,
+        fg: i === 0 ? T().ink : onColor(state.accent),
+        spacing: 3, nudge: 3, border: i === 0
+      });
+    }
+
+    brandLine(c, PAD, sT(F) + 40, 72, 40);
+
+    if (hasCta) {
+      setFont(c, 42, DISP(), DW(), sp(1.5));
+      var w = c.measureText(up(state.cta)).width + 92;
+      clearSpacing(c);
+      ctaPill(c, (F.w - w) / 2, safeBottom - F.bottomPad - ctaH, 42, 46, ctaH, state.accent, onColor(state.accent), true);
+    }
+  }
+
+  var RENDERERS = { A: renderA, B: renderB, C: renderC, D: renderD, E: renderE, F: renderF, G: renderG,
+    H: renderH, I: renderI, J: renderJ, K: renderK, L: renderL, M: renderM, N: renderN, O: renderO, P: renderP };
 
   function drawGuides(c, F) {
     if (!F.safe) return;
@@ -1025,44 +1596,48 @@
   function draw() {
     var F = fmt();
     if (canvas.width !== F.w || canvas.height !== F.h) { canvas.width = F.w; canvas.height = F.h; }
-    render(ctx, state.guides && !!F.safe);
+    render(ctx, state.guides);
   }
 
-  /* ---------- formato ---------- */
+  /* ---------- formato e tipografia ---------- */
 
-  var fmtWrap = document.getElementById('formats');
   var headSpec = document.getElementById('headSpec');
   var stageSpec = document.getElementById('stageSpec');
-
-  Object.keys(FORMATS).forEach(function (id) {
-    var F = FORMATS[id];
-    var b = document.createElement('button');
-    b.type = 'button'; b.className = 'fmt';
-    b.setAttribute('aria-pressed', String(state.format === id));
-    var ih = 34, iw = Math.round(ih * (F.w / F.h));
-    b.innerHTML = '<i style="width:' + iw + 'px;height:' + ih + 'px"></i>' +
-      '<span class="fmt-t"><b>' + id + ' · ' + F.name + '</b><span>' + F.w + ' × ' + F.h + '</span></span>';
-    b.addEventListener('click', function () {
-      state.format = id;
-      [].forEach.call(fmtWrap.children, function (el) { el.setAttribute('aria-pressed', 'false'); });
-      b.setAttribute('aria-pressed', 'true');
-      syncFormatUI(); persist(); draw();
-    });
-    fmtWrap.appendChild(b);
-  });
 
   function syncFormatUI() {
     var F = fmt();
     headSpec.textContent = F.w + ' × ' + F.h;
     stageSpec.textContent = 'Prévia ao vivo · ' + F.id + ' · ' + F.w + ' × ' + F.h;
-    var gl = document.getElementById('guidesLabel');
-    var gi = document.getElementById('guides');
-    gi.disabled = !F.safe;
-    gl.classList.toggle('off', !F.safe);
-    document.getElementById('guidesHint').textContent = F.safe
-      ? 'As linhas marcam onde a interface do Instagram cobre o criativo — 250 px no topo, 340 px embaixo. Não entram no PNG.'
-      : 'O 3:4 aparece inteiro no feed, sem interface por cima. Não há área segura a marcar.';
+    document.getElementById('guidesHint').textContent =
+      'O Instagram cobre 250 px no topo e 340 px embaixo com a própria interface. Com o ajuste ligado, manchete, selo e chamada ficam dentro da faixa visível — foto e faixas coloridas continuam sangrando até a borda. As linhas não entram no PNG.';
   }
+
+  var fontWrap = document.getElementById('fonts');
+  FONTS.forEach(function (f) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'fnt';
+    b.style.fontFamily = f.css;
+    b.textContent = f.name;
+    b.title = f.name;
+    b.setAttribute('aria-pressed', String(state.font === f.id));
+    b.addEventListener('click', function () {
+      state.font = f.id;
+      [].forEach.call(fontWrap.children, function (el) { el.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      persist(); draw();
+    });
+    fontWrap.appendChild(b);
+  });
+
+  var scaleEl = document.getElementById('textScale');
+  var scaleVal = document.getElementById('textScaleVal');
+  scaleEl.value = state.textScale;
+  scaleVal.textContent = state.textScale + '%';
+  scaleEl.addEventListener('input', function () {
+    state.textScale = Number(scaleEl.value);
+    scaleVal.textContent = state.textScale + '%';
+    persist(); draw();
+  });
 
   /* ---------- modelos ---------- */
 
@@ -1073,7 +1648,16 @@
     D: '<rect x="2" y="2" width="36" height="8" rx="2" fill="currentColor"/><rect x="2" y="12" width="17" height="20" rx="2" fill="currentColor" opacity=".25"/><rect x="21" y="12" width="17" height="20" rx="2" fill="currentColor" opacity=".25"/><rect x="2" y="34" width="36" height="20" rx="2" fill="currentColor" opacity=".85"/><rect x="2" y="34" width="4" height="20" fill="currentColor"/>',
     E: '<rect x="2" y="2" width="36" height="6" rx="2" fill="currentColor"/><rect x="2" y="11" width="17" height="18" rx="2" fill="currentColor" opacity=".25"/><rect x="21" y="11" width="17" height="18" rx="2" fill="currentColor" opacity=".25"/><rect x="2" y="31" width="36" height="23" rx="2" fill="currentColor" opacity=".85"/><text x="6" y="46" font-size="17" font-family="Georgia,serif" fill="var(--surface-2)">&#8220;</text>',
     F: '<rect x="2" y="2" width="17" height="32" rx="2" fill="currentColor" opacity=".25"/><rect x="21" y="2" width="17" height="32" rx="2" fill="currentColor" opacity=".25"/><rect x="4" y="24" width="13" height="6" rx="3" fill="currentColor" opacity=".7"/><rect x="23" y="24" width="13" height="6" rx="3" fill="currentColor" opacity=".7"/><rect x="2" y="36" width="36" height="18" rx="2" fill="currentColor" opacity=".85"/>',
-    G: '<rect x="2" y="2" width="36" height="18" rx="2" fill="currentColor" opacity=".85"/><rect x="2" y="22" width="17" height="32" rx="2" fill="currentColor" opacity=".25"/><rect x="21" y="22" width="17" height="32" rx="2" fill="currentColor" opacity=".25"/><rect x="4" y="43" width="15" height="9" rx="4.5" fill="currentColor" opacity=".8"/><rect x="21" y="43" width="15" height="9" rx="4.5" fill="none" stroke="currentColor" stroke-width="2" opacity=".8"/>'
+    G: '<rect x="2" y="2" width="36" height="18" rx="2" fill="currentColor" opacity=".85"/><rect x="2" y="22" width="17" height="32" rx="2" fill="currentColor" opacity=".25"/><rect x="21" y="22" width="17" height="32" rx="2" fill="currentColor" opacity=".25"/><rect x="4" y="43" width="15" height="9" rx="4.5" fill="currentColor" opacity=".8"/><rect x="21" y="43" width="15" height="9" rx="4.5" fill="none" stroke="currentColor" stroke-width="2" opacity=".8"/>',
+    H: '<rect x="2" y="2" width="36" height="7" rx="2" fill="currentColor" opacity=".7"/><rect x="4" y="12" width="32" height="26" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><rect x="6" y="14" width="13" height="22" rx="2" fill="currentColor" opacity=".25"/><rect x="21" y="14" width="13" height="22" rx="2" fill="currentColor" opacity=".25"/><rect x="2" y="42" width="30" height="5" rx="2" fill="currentColor" opacity=".85"/><rect x="2" y="49" width="18" height="5" rx="2" fill="currentColor" opacity=".85"/>',
+    I: '<path d="M2 2h22L14 54H2z" fill="currentColor" opacity=".25"/><path d="M26 2h12v52H16z" fill="currentColor" opacity=".25"/><path d="M24.5 2 14.5 54" stroke="currentColor" stroke-width="2.5"/><rect x="2" y="38" width="36" height="16" rx="2" fill="currentColor" opacity=".8"/>',
+    J: '<rect x="2" y="2" width="17" height="26" rx="2" fill="currentColor" opacity=".25"/><rect x="21" y="2" width="17" height="26" rx="2" fill="currentColor" opacity=".25"/><rect x="2" y="30" width="11" height="8" fill="currentColor"/><rect x="15" y="30" width="23" height="8" fill="currentColor" opacity=".45"/><rect x="2" y="40" width="36" height="7" rx="2" fill="currentColor" opacity=".85"/><rect x="2" y="49" width="36" height="5" fill="currentColor"/>',
+    K: '<rect x="2" y="2" width="36" height="30" rx="2" fill="currentColor" opacity=".25"/><rect x="24" y="22" width="14" height="14" rx="3" fill="currentColor" opacity=".45" stroke="currentColor" stroke-width="2"/><rect x="2" y="40" width="30" height="5" rx="2" fill="currentColor" opacity=".85"/><rect x="2" y="47" width="20" height="5" rx="2" fill="currentColor" opacity=".85"/>',
+    L: '<rect x="2" y="2" width="36" height="52" rx="3" fill="none" stroke="currentColor" stroke-width="4"/><rect x="8" y="9" width="24" height="5" rx="2" fill="currentColor" opacity=".7"/><rect x="8" y="17" width="24" height="6" rx="2" fill="currentColor" opacity=".85"/><rect x="8" y="26" width="10" height="21" rx="2" fill="currentColor" opacity=".25"/><rect x="22" y="26" width="10" height="21" rx="2" fill="currentColor" opacity=".25"/>',
+    M: '<rect x="2" y="2" width="17" height="52" rx="2" fill="currentColor" opacity=".25"/><rect x="21" y="2" width="17" height="52" rx="2" fill="currentColor" opacity=".25"/><rect x="2" y="20" width="36" height="18" fill="currentColor" opacity=".9"/><rect x="6" y="25" width="22" height="4" rx="2" fill="var(--surface-2)"/><rect x="6" y="31" width="16" height="4" rx="2" fill="var(--surface-2)"/>',
+    N: '<rect x="2" y="2" width="36" height="14" rx="2" fill="currentColor" opacity=".8"/><rect x="2" y="18" width="17" height="20" rx="2" fill="currentColor" opacity=".25"/><rect x="21" y="18" width="17" height="20" rx="2" fill="currentColor" opacity=".25"/><rect x="2" y="40" width="36" height="14" rx="2" fill="currentColor" opacity=".8"/>',
+    O: '<rect x="2" y="2" width="17" height="52" rx="2" fill="currentColor" opacity=".25"/><rect x="21" y="2" width="17" height="52" rx="2" fill="currentColor" opacity=".25"/><rect x="9" y="29" width="28" height="20" fill="currentColor" opacity=".45"/><rect x="5" y="25" width="28" height="20" fill="currentColor" opacity=".95"/><rect x="9" y="31" width="18" height="3.5" rx="1.5" fill="var(--surface-2)"/><rect x="9" y="37" width="12" height="3.5" rx="1.5" fill="var(--surface-2)"/>',
+    P: '<rect x="2" y="2" width="36" height="6" rx="2" fill="currentColor" opacity=".7"/><rect x="2" y="11" width="36" height="17" rx="2" fill="currentColor" opacity=".25"/><rect x="2" y="30" width="36" height="9" fill="currentColor" opacity=".9"/><rect x="2" y="30" width="3" height="9" fill="currentColor"/><rect x="2" y="41" width="36" height="13" rx="2" fill="currentColor" opacity=".25"/>'
   };
 
   var tplWrap = document.getElementById('templates');
@@ -1189,12 +1773,14 @@
   bind('brand', 'brand');
   bind('handle', 'handle');
   bind('initials', 'initials', refreshAvatarUI);
+  bind('caps', 'caps');
+  bind('safeLayout', 'safeLayout');
   bind('guides', 'guides');
 
   var counterEl = document.getElementById('counter');
   function updateCounter() {
     var n = (state.headline || '').trim().length;
-    var limit = fmt().id === '9:16' ? 84 : 68;
+    var limit = 84;
     counterEl.className = 'counter' + (n > limit ? ' warn' : '');
     counterEl.innerHTML = '<span>' + n + ' caracteres</span><span>' +
       (n > limit ? 'longa — vai reduzir o corpo' : 'ideal até ' + limit) + '</span>';
@@ -1271,6 +1857,17 @@
       '<div class="zoomrow"><span class="field-label">Zoom</span>' +
       '<input type="range" min="100" max="300" value="100" data-zoom aria-label="Zoom da foto ' + (idx + 1) + '">' +
       '<output data-zoomval>100%</output></div>' +
+      (idx === 1 ?
+        '<label class="check"><input type="checkbox" data-cen> Censurar esta foto</label>' +
+        '<div class="cen" data-cenctl hidden>' +
+          '<div class="segs" data-centype>' +
+            '<button type="button" class="seg" data-t="blur">Desfoque</button>' +
+            '<button type="button" class="seg" data-t="pixel">Pixelado</button>' +
+          '</div>' +
+          '<div class="zoomrow"><span class="field-label">Intensidade</span>' +
+          '<input type="range" min="10" max="100" step="5" data-cenamt aria-label="Intensidade da censura">' +
+          '<output data-cenval>60%</output></div>' +
+        '</div>' : '') +
       '<input type="file" accept="image/*" hidden data-input>';
 
     var input = el.querySelector('[data-input]');
@@ -1299,6 +1896,44 @@
       var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if (f) loadPhoto(idx, f);
     });
+    if (idx === 1) {
+      var cenBox = el.querySelector('[data-cen]');
+      var cenCtl = el.querySelector('[data-cenctl]');
+      var cenAmt = el.querySelector('[data-cenamt]');
+      var cenVal = el.querySelector('[data-cenval]');
+      var typeBtns = [].slice.call(el.querySelectorAll('[data-centype] .seg'));
+
+      var syncCen = function () {
+        cenBox.checked = state.censorOn;
+        cenCtl.hidden = !state.censorOn;
+        cenAmt.value = state.censorAmount;
+        cenVal.textContent = state.censorAmount + '%';
+        typeBtns.forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b.getAttribute('data-t') === state.censorType));
+        });
+      };
+
+      cenBox.addEventListener('change', function () {
+        state.censorOn = cenBox.checked;
+        cenCtl.hidden = !state.censorOn;
+        persist(); draw();
+      });
+      cenAmt.addEventListener('input', function () {
+        state.censorAmount = Number(cenAmt.value);
+        cenVal.textContent = state.censorAmount + '%';
+        persist(); draw();
+      });
+      typeBtns.forEach(function (b) {
+        b.addEventListener('click', function () {
+          state.censorType = b.getAttribute('data-t');
+          typeBtns.forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+          b.setAttribute('aria-pressed', 'true');
+          persist(); draw();
+        });
+      });
+      syncCen();
+    }
+
     return { fileLabel: fileLabel, zoom: zoom, zoomVal: zoomVal };
   }
   var slotUI = [buildSlot(0), buildSlot(1)];
@@ -1426,8 +2061,7 @@
 
   function fileName(extra) {
     var slug = (state.brand || 'noticias').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    return 'criativo-' + slug + '-' + state.template + '-' + fmt().id.replace(':', 'x') +
-      (extra ? '-' + extra : '') + '.png';
+    return 'criativo-' + slug + '-' + state.template + (extra ? '-' + extra : '') + '.png';
   }
 
   function deliver(blob, name) {
@@ -1493,8 +2127,8 @@
   function buildBatch() {
     var F = fmt(), t = currentTpl();
     batchSummary.textContent = 'Gera as três a partir do que está montado na aba Criativo — modelo ' +
-      t.name + ', formato ' + F.id + ' (' + F.w + ' × ' + F.h + '), mesmas fotos e mesma copy. ' +
-      'Mudou algo lá? Toque em "Gerar de novo".';
+      t.name + ', ' + FT().name + ' em ' + state.textScale + '%, ' + F.w + ' × ' + F.h + ', ' +
+      'mesmas fotos e mesma copy. Mudou algo lá? Toque em "Gerar de novo".';
     batchGrid.innerHTML = '';
 
     VARIANTS.forEach(function (v) {
@@ -1559,11 +2193,12 @@
   draw();
 
   if (document.fonts && document.fonts.load) {
-    Promise.all([
-      document.fonts.load('400 80px Anton'),
+    Promise.all(FONTS.map(function (f) {
+      return document.fonts.load(f.w + ' 80px ' + f.css.split(',')[0].replace(/'/g, ''));
+    }).concat([
       document.fonts.load('600 38px Archivo'),
       document.fonts.load('700 28px Archivo')
-    ]).then(draw).catch(function () {});
+    ])).then(draw).catch(function () {});
     document.fonts.ready.then(draw).catch(function () {});
   }
 })();
