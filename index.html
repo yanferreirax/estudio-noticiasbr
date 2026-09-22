@@ -507,6 +507,35 @@
       </fieldset>
 
       <fieldset>
+        <legend>Texto livre (resposta)</legend>
+        <label class="check"><input type="checkbox" id="respOn"> Mostrar o texto</label>
+        <label class="field">
+          <span class="field-label">Texto</span>
+          <textarea id="respText" rows="2" spellcheck="true"></textarea>
+        </label>
+        <span class="field-label">Fonte</span>
+        <div class="templates" id="respFonts"></div>
+        <div class="zoomrow">
+          <span class="field-label">Tamanho</span>
+          <input type="range" min="40" max="220" step="5" id="respSize" aria-label="Tamanho do texto">
+          <output id="respSizeVal">100%</output>
+        </div>
+        <div class="swatches" id="respColors">
+          <span class="field-label" style="margin-right: 2px">Cor</span>
+        </div>
+        <div class="zoomrow">
+          <span class="field-label">Contorno</span>
+          <input type="range" min="0" max="100" step="5" id="respStroke" aria-label="Contorno da letra">
+          <output id="respStrokeVal">45%</output>
+        </div>
+        <div class="swatches" id="respStrokeColors">
+          <span class="field-label" style="margin-right: 2px">Cor do contorno</span>
+        </div>
+        <button type="button" class="ghost" id="respCenter">Centralizar o texto</button>
+        <p class="hint">Arraste o texto na prévia para posicionar. O contorno é o que segura a leitura quando o fundo é claro ou muito cheio.</p>
+      </fieldset>
+
+      <fieldset>
         <legend>Fundo: foto ou vídeo</legend>
         <div class="slot" id="boxSlot">
           <div class="slot-head"><span class="slot-name">Arquivo</span><span class="slot-file" id="boxPhotoName">nenhum</span></div>
@@ -653,6 +682,37 @@
         <legend>Enquadramento</legend>
         <div class="grp" id="grpGeo"></div>
         <label class="check"><input type="checkbox" id="editMirror"> Espelhar na horizontal</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Mescla de foto</legend>
+        <label class="check"><input type="checkbox" id="overOn"> Jogar uma segunda foto por cima</label>
+        <div class="slot" id="overSlot">
+          <div class="slot-head"><span class="slot-name">Foto de cima</span><span class="slot-file" id="overName">nenhuma</span></div>
+          <div class="slot-actions">
+            <button type="button" class="ghost" id="overPick">Escolher imagem</button>
+            <button type="button" class="ghost" id="overCenter">Centralizar</button>
+          </div>
+          <input type="file" accept="image/*" hidden id="overInput">
+        </div>
+        <div class="zoomrow">
+          <span class="field-label">Opacidade</span>
+          <input type="range" min="5" max="100" step="5" id="overOpacity" aria-label="Opacidade da foto de cima">
+          <output id="overOpacityVal">60%</output>
+        </div>
+        <div class="zoomrow">
+          <span class="field-label">Tamanho</span>
+          <input type="range" min="10" max="160" step="5" id="overSize" aria-label="Tamanho da foto de cima">
+          <output id="overSizeVal">70%</output>
+        </div>
+        <span class="field-label">Mistura</span>
+        <div class="segs" id="overBlends">
+          <button type="button" class="seg" data-bl="source-over">Normal</button>
+          <button type="button" class="seg" data-bl="multiply">Multiplicar</button>
+          <button type="button" class="seg" data-bl="screen">Clarear</button>
+          <button type="button" class="seg" data-bl="overlay">Sobrepor</button>
+        </div>
+        <p class="hint">Arraste a foto de cima na prévia para posicionar. Ela entra depois dos ajustes de cor, e o grão e a vinheta passam por cima das duas.</p>
       </fieldset>
 
     </div>
@@ -2481,8 +2541,22 @@
     return { bg: 'rgba(0,0,0,0.45)', ink: '#ffffff' };
   }
 
+  /* texto livre por cima da peça — serve para responder a caixinha */
+  var resp = {
+    on: false,
+    text: 'Foi surreal mesmo 😭',
+    font: 'anton',
+    size: 100,
+    color: '#ffffff',
+    stroke: 45,
+    strokeColor: '#000000',
+    x: 0.5,
+    y: 0.34
+  };
+
   var BOX_KEYS = ['on', 'top', 'text', 'theme', 'size', 'tilt', 'dim', 'x', 'y'];
   var LINK_KEYS = ['on', 'text', 'style', 'color', 'size', 'opacity', 'x', 'y'];
+  var RESP_KEYS = ['on', 'text', 'font', 'size', 'color', 'stroke', 'strokeColor', 'x', 'y'];
   try {
     var bSaved = JSON.parse(localStorage.getItem('estudio-caixinha') || '{}');
     BOX_KEYS.forEach(function (k) {
@@ -2507,6 +2581,18 @@
     link.opacity = Math.max(20, Math.min(100, link.opacity));
     link.x = Math.max(0, Math.min(1, link.x));
     link.y = Math.max(0, Math.min(1, link.y));
+
+    var rSaved = JSON.parse(localStorage.getItem('estudio-resposta') || '{}');
+    RESP_KEYS.forEach(function (k) {
+      if (rSaved[k] !== undefined && typeof rSaved[k] === typeof resp[k]) resp[k] = rSaved[k];
+    });
+    if (!FONTS.some(function (f) { return f.id === resp.font; })) resp.font = 'anton';
+    resp.size = Math.max(40, Math.min(220, resp.size));
+    resp.stroke = Math.max(0, Math.min(100, resp.stroke));
+    if (!/^#[0-9a-fA-F]{6}$/.test(resp.color)) resp.color = '#ffffff';
+    if (!/^#[0-9a-fA-F]{6}$/.test(resp.strokeColor)) resp.strokeColor = '#000000';
+    resp.x = Math.max(0, Math.min(1, resp.x));
+    resp.y = Math.max(0, Math.min(1, resp.y));
   } catch (e) { /* storage indisponível */ }
 
   function persistBox() {
@@ -2517,6 +2603,9 @@
       var lout = {};
       LINK_KEYS.forEach(function (k) { lout[k] = link[k]; });
       localStorage.setItem('estudio-link', JSON.stringify(lout));
+      var rout = {};
+      RESP_KEYS.forEach(function (k) { rout[k] = resp[k]; });
+      localStorage.setItem('estudio-resposta', JSON.stringify(rout));
     } catch (e) { /* ignora */ }
   }
 
@@ -2524,6 +2613,7 @@
   var bctx = boxCanvas.getContext('2d');
   var boxRect = null;
   var linkRect = null;
+  var respRect = null;
 
   // retângulo com raio por canto (tl, tr, br, bl)
   function roundRect4(c, x, y, w, h, tl, tr, br, bl) {
@@ -2689,6 +2779,45 @@
     c.restore();
   }
 
+  /* texto livre: fonte escolhida, contorno atrás do preenchimento */
+  function respLayout(c, F) {
+    var ft = null;
+    for (var i = 0; i < FONTS.length; i++) if (FONTS[i].id === resp.font) ft = FONTS[i];
+    if (!ft) ft = FONTS[0];
+    var size = Math.max(20, Math.round(F.w * 0.082 * (resp.size / 100) * ft.scale));
+    setFont(c, size, ft.css, ft.w, 0);
+    var lines = boxWrap(c, (resp.text || '').trim() || ' ', F.w * 0.92);
+    var lineH = Math.round(size * 1.16 * ft.lh);
+    var wide = 0;
+    for (var j = 0; j < lines.length; j++) wide = Math.max(wide, c.measureText(lines[j]).width);
+    clearSpacing(c);
+    return { ft: ft, size: size, lines: lines, lineH: lineH, w: Math.round(wide), h: lines.length * lineH };
+  }
+
+  function drawResp(c, L, cx, cy) {
+    var top = cy - L.h / 2, i;
+    c.save();
+    c.textAlign = 'center';
+    c.textBaseline = 'top';
+    setFont(c, L.size, L.ft.css, L.ft.w, 0);
+    c.lineJoin = 'round';
+    c.lineCap = 'round';
+    c.miterLimit = 2;
+    var sw = resp.stroke / 100 * L.size * 0.22;
+    for (i = 0; i < L.lines.length; i++) {
+      var y = top + i * L.lineH + Math.round((L.lineH - L.size) / 2);
+      if (sw > 0) {
+        c.strokeStyle = resp.strokeColor;
+        c.lineWidth = sw * 2;          // metade fica escondida sob o preenchimento
+        c.strokeText(L.lines[i], cx, y);
+      }
+      c.fillStyle = resp.color;
+      c.fillText(L.lines[i], cx, y);
+    }
+    clearSpacing(c);
+    c.restore();
+  }
+
   function renderBox(c, F) {
     c.clearRect(0, 0, F.w, F.h);
 
@@ -2732,6 +2861,15 @@
     } else {
       linkRect = null;
     }
+
+    if (resp.on) {
+      var RL = respLayout(c, F);
+      var rx = Math.round(F.w * resp.x), ry = Math.round(F.h * resp.y);
+      drawResp(c, RL, rx, ry);
+      respRect = { x: rx - RL.w / 2, y: ry - RL.h / 2, w: Math.max(RL.w, 120), h: RL.h };
+    } else {
+      respRect = null;
+    }
   }
 
   function drawBox() {
@@ -2748,7 +2886,7 @@
     var F = fmt(), r = boxCanvas.getBoundingClientRect(), k = F.w / r.width;
     var px = (e.clientX - r.left) * k, py = (e.clientY - r.top) * k;
     var hit = function (r) { return r && px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h; };
-    var mode = hit(linkRect) ? 'link' : (hit(boxRect) ? 'box' : 'photo');
+    var mode = hit(respRect) ? 'resp' : (hit(linkRect) ? 'link' : (hit(boxRect) ? 'box' : 'photo'));
     if (mode === 'photo' && !bgSource()) return;
     bDrag = { mode: mode, x: px, y: py };
     boxCanvas.setPointerCapture(e.pointerId);
@@ -2764,6 +2902,9 @@
     } else if (bDrag.mode === 'link') {
       link.x = Math.max(0, Math.min(1, link.x + (px - bDrag.x) / F.w));
       link.y = Math.max(0, Math.min(1, link.y + (py - bDrag.y) / F.h));
+    } else if (bDrag.mode === 'resp') {
+      resp.x = Math.max(0, Math.min(1, resp.x + (px - bDrag.x) / F.w));
+      resp.y = Math.max(0, Math.min(1, resp.y + (py - bDrag.y) / F.h));
     } else {
       var bg = bgSource();
       if (!bg) return;
@@ -2786,6 +2927,12 @@
 
   /* ---------- controles da caixinha ---------- */
 
+  var respOnEl = document.getElementById('respOn');
+  var respTextEl = document.getElementById('respText');
+  var respSize = document.getElementById('respSize');
+  var respSizeVal = document.getElementById('respSizeVal');
+  var respStroke = document.getElementById('respStroke');
+  var respStrokeVal = document.getElementById('respStrokeVal');
   var boxOnEl = document.getElementById('boxOn');
   var linkOnEl = document.getElementById('linkOn');
   var linkTextEl = document.getElementById('linkText');
@@ -2830,9 +2977,86 @@
     var linkFields = [linkTextEl, linkSize, linkOpacity, linkPicker, document.getElementById('linkCenter')]
       .concat(linkStyleBtns);
     linkFields.forEach(function (el) { el.disabled = !link.on; });
+    var respFields = [respTextEl, respSize, respStroke, document.getElementById('respCenter')]
+      .concat(respFontBtns)
+      .concat([].slice.call(document.querySelectorAll('#respColors .sw, #respColors input, #respStrokeColors .sw, #respStrokeColors input')));
+    respFields.forEach(function (el) { el.disabled = !resp.on; });
   }
 
+  /* texto livre: fontes e paletas */
+  var respFontBtns = [];
+  FONTS.forEach(function (f) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'tpl';
+    b.style.fontFamily = f.css;
+    b.style.fontSize = '11px';
+    b.textContent = f.name;
+    b.setAttribute('aria-pressed', String(resp.font === f.id));
+    b.addEventListener('click', function () {
+      resp.font = f.id;
+      respFontBtns.forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      persistBox(); drawBox();
+    });
+    respFontBtns.push(b);
+    document.getElementById('respFonts').appendChild(b);
+  });
+
+  function buildRespSwatches(wrapId, key, list) {
+    var wrap = document.getElementById(wrapId), btns = [];
+    var picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = resp[key];
+    picker.setAttribute('aria-label', 'Cor personalizada');
+    var mark = function () {
+      btns.forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b.title.toLowerCase() === String(resp[key]).toLowerCase()));
+      });
+      picker.value = resp[key];
+    };
+    list.forEach(function (hex) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'sw';
+      b.style.background = hex; b.title = hex;
+      b.setAttribute('aria-label', 'Cor ' + hex);
+      b.addEventListener('click', function () { resp[key] = hex; mark(); persistBox(); drawBox(); });
+      btns.push(b);
+      wrap.appendChild(b);
+    });
+    picker.addEventListener('input', function () { resp[key] = picker.value; mark(); persistBox(); drawBox(); });
+    wrap.appendChild(picker);
+    return mark;
+  }
+
+  var markRespColor = buildRespSwatches('respColors', 'color',
+    ['#ffffff', '#000000', '#f5c518', '#ff3b30', '#25d366', '#00c2ff']);
+  var markRespStroke = buildRespSwatches('respStrokeColors', 'strokeColor',
+    ['#000000', '#ffffff', '#d81f26', '#1e1e22']);
+
+  respOnEl.addEventListener('change', function () {
+    resp.on = respOnEl.checked;
+    syncEnabled(); persistBox(); drawBox();
+  });
+  respTextEl.addEventListener('input', function () { resp.text = respTextEl.value; persistBox(); drawBox(); });
+  respSize.addEventListener('input', function () {
+    resp.size = Number(respSize.value); respSizeVal.textContent = resp.size + '%'; persistBox(); drawBox();
+  });
+  respStroke.addEventListener('input', function () {
+    resp.stroke = Number(respStroke.value); respStrokeVal.textContent = resp.stroke + '%'; persistBox(); drawBox();
+  });
+  document.getElementById('respCenter').addEventListener('click', function () {
+    resp.x = 0.5; resp.y = 0.34; persistBox(); drawBox();
+  });
+
   function syncBoxUI() {
+    respOnEl.checked = resp.on;
+    respTextEl.value = resp.text;
+    respSize.value = resp.size; respSizeVal.textContent = resp.size + '%';
+    respStroke.value = resp.stroke; respStrokeVal.textContent = resp.stroke + '%';
+    respFontBtns.forEach(function (b, i) {
+      b.setAttribute('aria-pressed', String(FONTS[i].id === resp.font));
+    });
+    markRespColor(); markRespStroke();
     boxOnEl.checked = box.on;
     linkOnEl.checked = link.on;
     linkTextEl.value = link.text;
@@ -2860,12 +3084,12 @@
 
   boxOnEl.addEventListener('change', function () {
     box.on = boxOnEl.checked;
-    if (!box.on && !link.on) { link.on = true; linkOnEl.checked = true; toast('Liguei o botão de link — a peça ficaria vazia sem nada.'); }
+    if (!box.on && !link.on && !resp.on) { link.on = true; linkOnEl.checked = true; toast('Liguei o botão de link — a peça ficaria vazia sem nada.'); }
     syncEnabled(); persistBox(); drawBox();
   });
   linkOnEl.addEventListener('change', function () {
     link.on = linkOnEl.checked;
-    if (!link.on && !box.on) { box.on = true; boxOnEl.checked = true; toast('Liguei a caixinha — a peça ficaria vazia sem nada.'); }
+    if (!link.on && !box.on && !resp.on) { box.on = true; boxOnEl.checked = true; toast('Liguei a caixinha — a peça ficaria vazia sem nada.'); }
     syncEnabled(); persistBox(); drawBox();
   });
   linkTextEl.addEventListener('input', function () { link.text = linkTextEl.value; persistBox(); drawBox(); });
@@ -3257,8 +3481,12 @@
     fit: { zoom: 1, ox: 0, oy: 0 },
     photo: { img: null, name: '' },
     video: { el: null, url: '', name: '', dur: 0, start: 0, end: 0, audio: true },
-    p: editDefaults()
+    p: editDefaults(),
+    over: { on: false, img: null, name: '', opacity: 60, size: 70, x: 0.5, y: 0.5, blend: 'source-over' }
   };
+
+  var OVER_KEYS = ['on', 'opacity', 'size', 'x', 'y', 'blend'];
+  var OVER_BLENDS = ['source-over', 'multiply', 'screen', 'overlay'];
 
   var myPresets = [];
   try {
@@ -3268,17 +3496,31 @@
     });
     var mp = JSON.parse(localStorage.getItem('estudio-edicao-presets') || '[]');
     if (Object.prototype.toString.call(mp) === '[object Array]') myPresets = mp.slice(0, 24);
+
+    var oSaved = JSON.parse(localStorage.getItem('estudio-edicao-mescla') || '{}');
+    OVER_KEYS.forEach(function (k) {
+      if (oSaved[k] !== undefined && typeof oSaved[k] === typeof edit.over[k]) edit.over[k] = oSaved[k];
+    });
+    if (OVER_BLENDS.indexOf(edit.over.blend) < 0) edit.over.blend = 'source-over';
+    edit.over.opacity = Math.max(5, Math.min(100, edit.over.opacity));
+    edit.over.size = Math.max(10, Math.min(160, edit.over.size));
+    edit.over.x = Math.max(0, Math.min(1, edit.over.x));
+    edit.over.y = Math.max(0, Math.min(1, edit.over.y));
   } catch (e) { /* storage indisponível */ }
 
   function persistEdit() {
     try {
       localStorage.setItem('estudio-edicao', JSON.stringify(edit.p));
       localStorage.setItem('estudio-edicao-presets', JSON.stringify(myPresets));
+      var oout = {};
+      OVER_KEYS.forEach(function (k) { oout[k] = edit.over[k]; });
+      localStorage.setItem('estudio-edicao-mescla', JSON.stringify(oout));
     } catch (e) { /* ignora */ }
   }
 
   var editCanvas = document.getElementById('previewEdit');
   var ectx = editCanvas.getContext('2d');
+  var overRect = null;
 
   function editSource() {
     if (edit.src === 'video' && edit.video.el && edit.video.el.readyState >= 2) {
@@ -3342,6 +3584,7 @@
   function renderEdit(c, F) {
     var p = edit.p, s = editSource();
     c.clearRect(0, 0, F.w, F.h);
+    overRect = null;
 
     if (!s || !s.w || !s.h) {
       c.fillStyle = '#17171c'; c.fillRect(0, 0, F.w, F.h);
@@ -3392,6 +3635,20 @@
       c.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')';
       c.fillRect(0, 0, F.w, F.h);
       c.restore();
+    }
+
+    // segunda foto por cima, com mistura e opacidade próprias
+    var O = edit.over;
+    if (O.on && O.img) {
+      var ow = F.w * (O.size / 100);
+      var oh = ow * (O.img.naturalHeight / O.img.naturalWidth);
+      var ox = Math.round(F.w * O.x - ow / 2), oy = Math.round(F.h * O.y - oh / 2);
+      c.save();
+      c.globalAlpha = O.opacity / 100;
+      c.globalCompositeOperation = O.blend;
+      try { c.drawImage(O.img, ox, oy, ow, oh); } catch (e) {}
+      c.restore();
+      overRect = { x: ox, y: oy, w: ow, h: oh };
     }
 
     if (p.grao) {
@@ -3695,22 +3952,114 @@
   });
   editVideoAudio.addEventListener('change', function () { edit.video.audio = editVideoAudio.checked; });
 
+  /* mescla: segunda foto por cima */
+
+  var overOnEl = document.getElementById('overOn');
+  var overNameEl = document.getElementById('overName');
+  var overInput = document.getElementById('overInput');
+  var overOpacity = document.getElementById('overOpacity');
+  var overOpacityVal = document.getElementById('overOpacityVal');
+  var overSize = document.getElementById('overSize');
+  var overSizeVal = document.getElementById('overSizeVal');
+  var overBlendBtns = [].slice.call(document.querySelectorAll('#overBlends .seg'));
+
+  function syncOverUI() {
+    var O = edit.over;
+    overOnEl.checked = O.on;
+    overNameEl.textContent = O.name || 'nenhuma';
+    overOpacity.value = O.opacity; overOpacityVal.textContent = O.opacity + '%';
+    overSize.value = O.size; overSizeVal.textContent = O.size + '%';
+    overBlendBtns.forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-bl') === O.blend));
+    });
+    var fields = [overOpacity, overSize, document.getElementById('overPick'),
+                  document.getElementById('overCenter')].concat(overBlendBtns);
+    fields.forEach(function (el) { el.disabled = !O.on; });
+  }
+
+  overOnEl.addEventListener('change', function () {
+    edit.over.on = overOnEl.checked;
+    syncOverUI(); persistEdit(); drawEdit();
+  });
+  overOpacity.addEventListener('input', function () {
+    edit.over.opacity = Number(overOpacity.value);
+    overOpacityVal.textContent = edit.over.opacity + '%';
+    persistEdit(); drawEdit();
+  });
+  overSize.addEventListener('input', function () {
+    edit.over.size = Number(overSize.value);
+    overSizeVal.textContent = edit.over.size + '%';
+    persistEdit(); drawEdit();
+  });
+  overBlendBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      edit.over.blend = b.getAttribute('data-bl');
+      overBlendBtns.forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      persistEdit(); drawEdit();
+    });
+  });
+  document.getElementById('overCenter').addEventListener('click', function () {
+    edit.over.x = 0.5; edit.over.y = 0.5;
+    persistEdit(); drawEdit();
+  });
+  document.getElementById('overPick').addEventListener('click', function () { overInput.click(); });
+
+  overInput.addEventListener('change', function () {
+    var f = overInput.files && overInput.files[0];
+    if (!f) return;
+    if (!/^image\//.test(f.type)) { toast('A foto de cima precisa ser uma imagem.'); return; }
+    var url = URL.createObjectURL(f);
+    var img = new Image();
+    img.onload = function () {
+      var MAX = 2200, src = img;
+      if (Math.max(img.naturalWidth, img.naturalHeight) > MAX) {
+        var kk = MAX / Math.max(img.naturalWidth, img.naturalHeight);
+        var off = document.createElement('canvas');
+        off.width = Math.round(img.naturalWidth * kk);
+        off.height = Math.round(img.naturalHeight * kk);
+        off.getContext('2d').drawImage(img, 0, 0, off.width, off.height);
+        src = off; src.naturalWidth = off.width; src.naturalHeight = off.height;
+      }
+      edit.over.img = src;
+      edit.over.name = f.name;
+      if (!edit.over.on) { edit.over.on = true; }
+      URL.revokeObjectURL(url);
+      syncOverUI(); persistEdit(); drawEdit();
+    };
+    img.onerror = function () { toast('Não consegui abrir essa imagem.'); URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+
   /* arrastar para enquadrar */
 
   var eDrag = null;
   editCanvas.addEventListener('pointerdown', function (e) {
-    if (!editSource()) return;
-    var F = fmt(), r = editCanvas.getBoundingClientRect(), kk = F.w / r.width;
-    eDrag = { x: (e.clientX - r.left) * kk, y: (e.clientY - r.top) * kk };
+    var F0 = fmt(), r0 = editCanvas.getBoundingClientRect(), k0 = F0.w / r0.width;
+    var px0 = (e.clientX - r0.left) * k0, py0 = (e.clientY - r0.top) * k0;
+    var onOver = edit.over.on && edit.over.img && overRect &&
+                 px0 >= overRect.x && px0 <= overRect.x + overRect.w &&
+                 py0 >= overRect.y && py0 <= overRect.y + overRect.h;
+    if (!onOver && !editSource()) return;
+    eDrag = { x: px0, y: py0, mode: onOver ? 'over' : 'base' };
     editCanvas.setPointerCapture(e.pointerId);
     editCanvas.classList.add('grabbing');
   });
   editCanvas.addEventListener('pointermove', function (e) {
     if (!eDrag) return;
-    var s = editSource();
-    if (!s) return;
     var F = fmt(), r = editCanvas.getBoundingClientRect(), kk = F.w / r.width;
     var px = (e.clientX - r.left) * kk, py = (e.clientY - r.top) * kk;
+
+    if (eDrag.mode === 'over') {
+      edit.over.x = Math.max(0, Math.min(1, edit.over.x + (px - eDrag.x) / F.w));
+      edit.over.y = Math.max(0, Math.min(1, edit.over.y + (py - eDrag.y) / F.h));
+      eDrag.x = px; eDrag.y = py;
+      persistEdit(); drawEdit();
+      return;
+    }
+
+    var s = editSource();
+    if (!s) return;
     var sc = Math.max(F.w / s.w, F.h / s.h) * edit.fit.zoom;
     var maxOx = Math.max(1, (s.w * sc - F.w) / 2), maxOy = Math.max(1, (s.h * sc - F.h) / 2);
     var dir = edit.p.espelhar ? -1 : 1;
@@ -3801,6 +4150,7 @@
   syncEditParams();
   buildMyPresets();
   syncEditFile();
+  syncOverUI();
   drawEdit();
 
   function drawAll() { draw(); drawBox(); drawEdit(); }
